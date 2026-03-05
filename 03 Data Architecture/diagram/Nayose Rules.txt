@@ -1,0 +1,42 @@
+Nayose resolves the core challenge of identifying disparate records across source systems referring to the same entity (e.g customer) - even without common keys. 
+Rule Engine to be built using Japanese aware fuzzy string matching on names, addresses, phone numbers and vehicle data, a specialized form of deduplication or Entity Resolution (ER) techniques. 
+Following are the proposed steps to be performed on customer data basis the Nayose concept:-
+
+. Standardization and Cleaning (Normalization)
+
+Data standardization as Japanese script varies in format (Kanji, Hiragana and Katakana) 
+
+Kana Normalization: Convert all Hiragana and Katakana into a single standard, half-width or full-width Katakana.
+
+Alphabet/Character Mapping: Standardize alphanumeric characters, such as converting full-width English characters to half-width, and mapping traditional Kanji (舊字体) to simplified Kanji (新字体).
+
+Address Cleaning: Standardize addresses by breaking them down into Prefectures (県/都/道/府), Cities (市), Towns (町/町名), and House Numbers (番地) to handle variations in writing the same location. 
+2. Matching and Disambiguation (Nayose Rules)
+ [80 configurable rules (20 low /25 medium /35 high) complexity]
+
+Japanese names often have different Kanji but the same pronunciation, for which Nayose uses several deterministic and probabilistic rules  for matching as below:
+ 
+Phonetic Matching (Yomi Matching): Matching based on pronunciation (Kana) rather than Kanji. This identifies that "佐藤" (Sato) and "佐東" (Sato) are likely the same person if other data matches.
+
+Entity Linking (Local Context): Using context, such as phone numbers, date of birth, company name, to confirm if two identical names are the same person.
+
+Identity Matching Rules: To determine whether two records belong to the same person.
+Deterministic match (100%): National ID, Passport, Tax ID, mobile, email
+Probabilistic match(weighted scoring): Name + Date of Birth + postcode
+Address normalization + phone/email match
+Transliteration rules (e.g., Japanese ↔ English names)
+
+Named Entity Matching: Specialized algorithms using surrounding text and specific entities (locations, organizations) to classify content representing the same person or place
+
+3. Golden Record Creation (Record Consolidation
+Once duplicates are identified records are to be merged
+Create Master Entity- Select the most recent or complete data as the primary record.
+Merge Information- Combine unique information from duplicate records (e.g., merging "Office Phone" from record A with "Mobile Phone" from record B 
+Audit trail to capture every merge decision with timestamp
+Feedback loop for data quality scores to improve iteratively
+
+Suggested Tools & Techniques on Japanese Data
+
+AI based open source tool - Geolonia to normalize Japanese addresses. It  parses raw address strings into standardized components, essential for mapping and logistics.
+
+Japanese Named Entity Recognition (NER) - a Natural Language Processing (NLP) technique that automatically identifies and classifies proper nouns—such as person names, locations, organizations, and temporal expressions in a handling ambiguous names within Japanese text.

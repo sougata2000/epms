@@ -1,0 +1,39 @@
+mmermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant APIGateway as API Gateway
+    participant DiscoveryBFF as Discovery BFF
+    participant DiscoveryOrch as Discovery Orchestrator
+    participant IdeaDiscovery as Idea Discovery Service
+    participant CampaignService as Campaign Service
+    participant Cache as Redis Cache
+
+    User->>UI: 1. Open home page
+    UI->>APIGateway: 2. GET /bff/v1/discover/home
+    APIGateway->>DiscoveryBFF: 3. Forward request
+    DiscoveryBFF->>DiscoveryOrch: 4. orchestrateHomePageLoad()
+    
+    Note over DiscoveryOrch: Parallel data fetching
+    
+    par Fetch trending topics
+        DiscoveryOrch->>Cache: 5a. Check cache: trending_topics
+        Cache-->>DiscoveryOrch: 5b. Cache MISS
+        DiscoveryOrch->>IdeaDiscovery: 5c. GET /api/v1/discovery/trending/topics
+        IdeaDiscovery-->>DiscoveryOrch: 5d. Trending topics (AI, Sustainability)
+        DiscoveryOrch->>Cache: 5e. Cache trending topics (TTL: 10min)
+    and Fetch latest ideas
+        DiscoveryOrch->>IdeaDiscovery: 6. GET /api/v1/discovery/ideas/latest?limit=10
+        IdeaDiscovery-->>DiscoveryOrch: 7. Latest 10 ideas
+    and Fetch active campaigns
+        DiscoveryOrch->>CampaignService: 8. GET /api/v1/campaigns/active
+        CampaignService-->>DiscoveryOrch: 9. Active campaigns list
+    and Fetch trending ideas
+        DiscoveryOrch->>IdeaDiscovery: 10. GET /api/v1/discovery/ideas/trending?limit=5
+        IdeaDiscovery-->>DiscoveryOrch: 11. Top 5 trending ideas
+    end
+    
+    DiscoveryOrch-->>DiscoveryBFF: 12. Aggregated home page data
+    DiscoveryBFF-->>APIGateway: 13. 200 OK
+    APIGateway-->>UI: 14. Home page data
+    UI-->>User: 15. Display: What's New, Latest Ideas, Active Campaigns

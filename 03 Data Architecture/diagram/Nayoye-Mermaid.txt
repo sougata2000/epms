@@ -1,0 +1,26 @@
+
+config:
+  layout: fixed
+---
+flowchart LR
+    A["Source Systems"] --> B["S3 Bronze (Raw)"]
+    B --> C["Glue Job: Normalize + Standardize (JP-aware)"]
+    D["Glue Job: Blocking + Candidate Pair Generation"] --> E["Step Functions Orchestration"]
+    E --> F["Python Rule Engine (rules, scoring, explainability) Services on EKS"]
+    F --> G["Match Decisions (MATCH / REVIEW / NON_MATCH)"]
+    G --> H["Glue Job: Golden Record Consolidation"]
+    H --> I["S3 Gold / Redshift"]
+    J["Rule Config Store (DynamoDB/RDS): weights, thresholds, versions"] -.- F
+    K["Reference Data (name/address dictionaries, transliteration maps)"] -.- F
+    n1[" "] -.- n2[" "]
+    n3[" "] --> n4[" "]
+    n6[" "] --> n7[" "]
+    n5["Python NLP, Fuzzy Matching"]
+
+    n1@{ shape: anchor}
+    n2@{ shape: anchor}
+    n3@{ shape: anchor}
+    n4@{ shape: anchor}
+    n6@{ shape: anchor}
+    n7@{ shape: anchor}
+    n5@{ shape: rect}

@@ -1,0 +1,69 @@
+mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant APIGateway as API Gateway
+    participant IdeaBFF as Idea Submission BFF
+    participant IdeaOrch as Idea Submission Orchestrator
+    participant ServiceAdapter as Service Adapter
+    participant IdeaService as Idea Service
+    participant IdeaDiscovery as Idea Discovery Service
+    participant NotificationAdapter as Notification Adapter
+    participant Kafka
+    participant Database as PostgreSQL
+
+    User->>UI: 1. Fill idea form (title, description, campaign, confidentiality)
+    UI->>APIGateway: 2. POST /bff/v1/ideas/create
+    APIGateway->>IdeaBFF: 3. Forward request with JWT token
+    IdeaBFF->>IdeaOrch: 4. orchestrateIdeaCreation(ideaData)
+    
+    Note over IdeaOrch: Orchestration starts
+    
+    IdeaOrch->>ServiceAdapter: 5. GET /api/v1/services/users/{userId}
+    ServiceAdapter-->>IdeaOrch: 6. User profile validated
+    
+    IdeaOrch->>ServiceAdapter: 7. GET /api/v1/campaigns/{campaignId}
+    ServiceAdapter-->>IdeaOrch: 8. Campaign details (active, valid)
+    
+    IdeaOrch->>ServiceAdapter: 9. POST /api/v1/services/files/upload
+    ServiceAdapter-->>IdeaOrch: 10. Display picture URL
+    
+    IdeaOrch->>IdeaService: 11. POST /api/v1/ideas (status: DRAFT)
+    IdeaService->>Database: 12. INSERT INTO ideas
+    Database-->>IdeaService: 13. ideaId generated
+    IdeaService->>Kafka: 14. Publish event: idea.created
+    IdeaService-->>IdeaOrch: 15. { ideaId, status: DRAFT }
+    
+    IdeaOrch->>IdeaDiscovery: 16. POST /api/v1/discovery/similarity/match
+    IdeaDiscovery-->>IdeaOrch: 17. Potential matches: [{ ideaId, matchPercentage, title }]
+    
+    IdeaOrch-->>IdeaBFF: 18. { ideaId, potentialMatches[] }
+    IdeaBFF-->>APIGateway: 19. 201 Created
+    APIGateway-->>UI: 20. Response with potential matches
+    UI-->>User: 21. Show "Potential Matches" with older ideas
+    
+    User->>UI: 22. Review matches and confirm submission
+    UI->>APIGateway: 23. POST /bff/v1/ideas/submit { ideaId }
+    APIGateway->>IdeaBFF: 24. Forward submission request
+    IdeaBFF->>IdeaOrch: 25. orchestrateIdeaSubmission(ideaId)
+    
+    IdeaOrch->>IdeaService: 26. POST /api/v1/ideas/{ideaId}/submit
+    IdeaService->>Database: 27. UPDATE ideas SET status='SUBMITTED'
+    Database-->>IdeaService: 28. Updated
+    IdeaService->>Kafka: 29. Publish event: idea.submitted
+    IdeaService-->>IdeaOrch: 30. { ideaId, status: SUBMITTED, generatedIdeaId: "IDEA-2025-001" }
+    
+    IdeaOrch->>ServiceAdapter: 31. POST /api/v1/services/users/suggest-contributors
+    ServiceAdapter-->>IdeaOrch: 32. Suggested contributors
+    
+    IdeaOrch->>IdeaService: 33. POST /api/v1/ideas/{ideaId}/contributors
+    IdeaService-->>IdeaOrch: 34. Contributors added
+    
+    IdeaOrch->>NotificationAdapter: 35. POST /api/v1/notifications/send
+    Note right of NotificationAdapter: Notify contributors about new idea
+    NotificationAdapter-->>IdeaOrch: 36. Notifications sent
+    
+    IdeaOrch-->>IdeaBFF: 37. { ideaId, generatedIdeaId, status: SUBMITTED }
+    IdeaBFF-->>APIGateway: 38. 200 OK
+    APIGateway-->>UI: 39. Success response
+    UI-->>User: 40. "Success! Your Idea ID: IDEA-2025-001"

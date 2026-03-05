@@ -1,0 +1,82 @@
+---
+id: 93c5ff67-a451-4994-9865-640ffd743599
+---
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as React UI
+    participant Nginx as Nginx
+    participant AzureAD as Azure AD
+    participant APIGateway as API Gateway
+    participant BFF as BFF Layer
+    participant JO as Journey Orchestrator
+    participant RE as Rules Engine
+    participant MS1 as Business Microservice 1
+    participant MS2 as Business Microservice 2
+    participant Caching  as Caching
+    participant DB as Database
+    participant IA as Integration Adapters
+    participant EM as Event Messaging
+    participant NS as Notification Service
+    
+    %% User Authentication Flow
+    User->>UI: Access Application
+    UI->>Nginx: HTTP Request
+    Nginx->>AzureAD: Redirect for Authentication
+    AzureAD->>User: Login Prompt
+    User->>AzureAD: Credentials
+    AzureAD->>AzureAD: Validate User
+    AzureAD->>Nginx: Auth Token (JWT)
+    Nginx->>UI: Auth Token + Redirect
+    UI->>User: Display Dashboard
+    
+    %% Business Request Flow
+    User->>UI: Initiate Business Action
+    UI->>Nginx: API Request + Token
+    Nginx->>APIGateway: Forward Request
+    APIGateway->>APIGateway: Validate Token
+    APIGateway->>BFF: Route to BFF
+    
+    %% BFF Processing
+    BFF->>BFF: Aggregate Request Data
+    BFF->>JO: Initiate Journey
+    
+    %% Journey Orchestration
+    JO->>RE: Check Business Rules
+    RE->>RE: Evaluate Rules
+    RE->>JO: Rules Result
+    
+    %% Business Logic Execution
+    JO->>MS1: Call Business Service 1
+    MS1->>DB: Query Data
+    DB->>MS1: Return Data
+    MS1->>JO: Service 1 Response
+    
+    JO->>MS2: Call Business Service 2
+    MS2->>IA: Call External System
+    IA->>IA: Transform Data
+    IA->>MS2: External Data
+    MS2->>DB: Update Data
+    DB->>MS2: Confirmation
+    MS2->>JO: Service 2 Response
+    
+    %% Event Publishing
+    JO->>EM: Publish Business Event
+    EM->>NS: Trigger Notification
+    NS->>User: Send Notification (Email/SMS)
+    
+    %% Response Flow
+    JO->>BFF: Journey Complete
+    BFF->>BFF: Transform Response
+    BFF->>APIGateway: API Response
+    APIGateway->>Nginx: Forward Response
+    Nginx->>UI: HTTP Response
+    UI->>User: Display Result
+    
+    %% Async Processing (parallel)
+    par Async Event Processing
+        EM->>MS1: Event Consumed
+        MS1->>DB: Process Event
+        EM->>MS2: Event Consumed
+        MS2->>IA: Trigger Integration
+    end

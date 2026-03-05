@@ -5,9 +5,10 @@ sequenceDiagram
     autonumber
     actor User
     participant UI as React UI
+    participant CDN as CDN
     participant Nginx as Nginx
-    participant AzureAD as Azure AD
     participant APIGateway as API Gateway
+    participant Azure AD as Azure AD
     participant BFF as BFF Layer
     participant JO as Journey Orchestrator
     participant RE as Rules Engine
@@ -22,7 +23,8 @@ sequenceDiagram
     %% User Authentication Flow
     User->>UI: Access Application
     UI->>Nginx: HTTP Request
-    Nginx->>AzureAD: Redirect for Authentication
+    Nginx->>API Gateway: Redirect for Authentication
+    APIGateway->>AzureAD: Redirect for Authentication
     AzureAD->>User: Login Prompt
     User->>AzureAD: Credentials
     AzureAD->>AzureAD: Validate User

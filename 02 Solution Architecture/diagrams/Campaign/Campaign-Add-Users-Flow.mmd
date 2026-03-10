@@ -1,0 +1,62 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI
+    participant APIGateway as API Gateway
+    participant BFF as Campaign BFF
+    participant Orch as Campaign Submission Orchestrator
+    participant Participants as Participants Service
+    participant Campaign as Campaign Service
+    participant Cache as Cache Store
+    participant SAPHRMS as SAP HRMS
+    participant AdapterService as Adapter Service
+    participant DistList as PostgreSQL Distribution List
+
+    Note over Cache,DistList: Daily cache refresh runs for users and distribution lists
+
+    User->>UI: Add users to campaign
+    UI->>APIGateway: Request to add users
+    APIGateway->>BFF: Forward request
+    BFF->>Orch: Initiate campaign submission
+    
+    Orch->>Participants: Request user details
+    Participants->>Cache: Fetch user names
+    
+    alt Cache Hit
+        Cache-->>Participants: Return cached user data
+    else Cache Miss
+        Participants->>APIGateway: Request user data from SAP
+        APIGateway->>APIGateway: Validate SAP service key
+        
+        alt Valid Service Key
+            APIGateway->>AdapterService: Forward SAP request
+            AdapterService->>SAPHRMS: Fetch user data
+            SAPHRMS-->>AdapterService: Return user data
+            AdapterService-->>APIGateway: Return user data
+            APIGateway-->>Participants: Return user data
+            Participants->>Cache: Store user data in cache
+        else Invalid Service Key
+            APIGateway-->>Participants: Authentication failed
+        end
+    end
+    
+    Participants->>DistList: Fetch distribution list data
+    
+    alt DL Cache Hit
+        DistList->>Cache: Check DL cache
+        Cache-->>DistList: Return cached DL data
+        DistList-->>Participants: Return DL data
+    else DL Cache Miss
+        DistList-->>Participants: Return DL data from DB
+        Participants->>Cache: Store DL data in cache
+    end
+    
+    Participants-->>Orch: Return user and DL details
+    Orch->>Campaign: Update campaign with users
+    Campaign-->>Orch: Campaign updated
+    Orch-->>BFF: Success response
+    BFF-->>APIGateway: Success response
+    APIGateway-->>UI: Success response
+    UI-->>User: Users added successfully
+
+    Note over Cache: Cache refreshed daily for users and distribution lists

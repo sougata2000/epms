@@ -1,0 +1,44 @@
+
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI
+    participant APIGateway as API Gateway
+    participant BFF as Campaign BFF
+    participant Orch as Campaign Submission Orchestrator
+    participant Participants as Participants Service
+    participant Campaign as Campaign Service
+    participant DB as PostgreSQL
+    participant Bus as Kafka/Event Bus
+    participant Notify as Notification Service
+
+    User->>UI: Click "Submit Campaign"
+    UI->>APIGateway: POST /bff/v1/campaigns/{campaignId}/submit
+    APIGateway->>BFF: Forward request + JWT
+    BFF->>Orch: orchestrateSubmission(campaignId, userId)
+
+    Orch->>Campaign: Validate campaign state (DRAFT/READY)
+    Campaign->>DB: Read campaign
+    DB-->>Campaign: Campaign data
+    Campaign-->>Orch: Validation result
+
+    Orch->>Participants: Finalize participants (resolve DLs, dedupe, role merge)
+    Participants->>DB: Store frozen participant snapshot
+    DB-->>Participants: snapshotId
+    Participants-->>Orch: participantCount, snapshotId
+
+    Orch->>Campaign: Submit campaign (status=SUBMITTED)
+    Campaign->>DB: Update status + generate campaign code
+    DB-->>Campaign: campaignCode
+    Campaign->>Bus: Publish Campaign.Submitted
+    Campaign-->>Orch: campaignId, campaignCode, status
+
+    Bus-->>Notify: Consume Campaign.Submitted
+    Notify->>DB: Persist notification logs
+    Notify-->>Bus: Notification sent
+
+    Orch-->>BFF: Submission success payload
+    BFF-->>APIGateway: 200 OK
+    APIGateway-->>UI: Success response
+    UI-->>User: "Campaign submitted successfully"
+

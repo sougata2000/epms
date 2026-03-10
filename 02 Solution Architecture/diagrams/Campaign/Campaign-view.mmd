@@ -1,0 +1,26 @@
+
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI
+    participant APIGateway as API Gateway
+    participant CampaignService as Campaign Service
+    participant DB as PostgreSQL
+
+    User->>UI: Open My/Invited/All campaigns and apply search/filter
+    UI->>APIGateway: Get Campaign ( Filter)
+    APIGateway->>CampaignService: Forward request + JWT
+    CampaignService->>CampaignService: Resolve user from JWT and build scope
+    CampaignService->>DB: Query campaign + contributor access + filters + pagination
+    DB-->>CampaignService: Campaign rows
+    CampaignService-->>APIGateway: 200 list response
+    APIGateway-->>UI: Campaign cards/table
+
+    User->>UI: Click expand on one campaign row
+    UI->>APIGateway: GET Campaign By Campaign ID
+    APIGateway->>CampaignService: Forward request + JWT
+    CampaignService->>DB: Query campaign detail by campaignId + access check
+    DB-->>CampaignService: Detail row
+    CampaignService-->>APIGateway: 200 detail response
+    APIGateway-->>UI: Expanded campaign detail
+    UI-->>User: Expanded campaign detail

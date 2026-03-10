@@ -1,0 +1,54 @@
+sequenceDiagram
+    actor User
+    participant UI as React UI
+    participant APIGateway as API Gateway
+    participant BFF as BFF Layer
+    participant CampaignServices as Campaign Services
+    participant DB as Database
+
+    %% Campaign Search/Filter Flow
+    User->>UI: 1. Invoke Search/List/Filter Campaign
+    
+    UI->>APIGateway: 2. Send Search Request<br/>(Search Criteria)
+    Note over UI,APIGateway: GET/POST /api/campaigns/search<br/>Parameters: filters, pagination
+    
+    APIGateway->>BFF: 3. Forward Request to BFF
+    Note over APIGateway,BFF: Request Validation<br/>& Authentication Check
+    
+    BFF->>CampaignServices: 4. Route to Campaign Query Service
+    
+    %% Database Query Operations
+    alt Search by Campaign
+        CampaignServices->>DB: 5a. Query by Campaign Name/ID
+        DB-->>CampaignServices: 6a. Return Campaign Results
+    else Search by User
+        CampaignServices->>DB: 5b. Query by User/Owner
+        DB-->>CampaignServices: 6b. Return User Campaigns
+    else Search by Date
+        CampaignServices->>DB: 5c. Query by Date Range
+        DB-->>CampaignServices: 6c. Return Date-Filtered Campaigns
+    else List All (with Filters)
+        CampaignServices->>DB: 5d. Query with Multiple Filters
+        DB-->>CampaignServices: 6d. Return Filtered Results
+    end
+    
+    %% Response Processing
+    CampaignServices-->>BFF: 7. Return Campaign Data (JSON)
+    
+    BFF-->>APIGateway: 8. Aggregate & Transform Response
+    
+    APIGateway-->>UI: 9. Return JSON Response
+    Note over APIGateway,UI: HTTP 200 OK<br/>Content-Type: application/json
+    
+    UI-->>User: 10. Display Campaign Results
+    Note over UI,User: Render campaign list<br/>with search/filter options
+    
+    %% Error Handling
+    alt Error Scenario
+        CampaignServices->>DB: Query Execution
+        DB-->>CampaignServices: Error Response
+        CampaignServices-->>BFF: Error Details
+        BFF-->>APIGateway: Formatted Error
+        APIGateway-->>UI: HTTP Error (400/500)
+        UI-->>User: Display Error Message
+    end

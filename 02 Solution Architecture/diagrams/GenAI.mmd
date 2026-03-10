@@ -1,0 +1,99 @@
+
+
+%%flowchart LR
+ 
+ 
+   %% UI[User<br/>Web / Mobile] --> APIGateway[API Gateway]
+    %% APIGateway -->BFF[Web BFF /<br/> Mobile BFF]
+    %% BFF --> AIO[AI Orchestrator]
+
+    %% AIO --> AUTH[AuthZ / Guardrails]
+    %% AIO --> LLM[LLM / Intent Parser]
+    %% AIO --> MCP[MCP / Tool Adapter Layer]
+
+    %% MCP --> BIZ[Biz Microservices<br/>Campaign / WBS]
+    %% MCP --> JOR[Journey Orchestrator]
+    %% MCP --> RULE[Rule Engine]
+    %% MCP --> DB[(RDBMS / NoSQL)]
+
+    %% BIZ --> DB
+    %% JOR --> BIZ
+    %% RULE --> BIZ
+
+    %% DB --> MCP
+    %% BIZ --> MCP
+    %% MCP --> AIO
+    %% LLM --> AIO
+    %% AUTH --> AIO
+    %% AIO --> BFF
+    %% BFF --> APIGateway
+    %% APIGateway --> UI 
+  
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as EPMS Web/Mobile UI
+    participant BFF as Web BFF / Mobile BFF
+    participant AIO as AI Orchestrator
+    participant Auth as Azure AD / AuthZ
+    participant MCP as MCP / Tool Adapter Layer
+    participant Camp as Campaign Service
+    participant WBS as WBS Service
+    participant Rule as Rule Engine
+    participant Search as Search Service
+    participant LLM as LLM
+
+    User->>UI: Ask: "Show all delayed WBS items for Campaign X"
+    UI->>BFF: POST /api/ai/copilot/query
+    Note over UI,BFF: Body: { query, channel, userContext }
+
+    BFF->>Auth: Validate JWT / roles
+    Auth-->>BFF: Token valid + user claims
+
+    BFF->>AIO: POST /internal/ai/orchestrator/query
+    Note over BFF,AIO: Body: { query, userId, roles, channel }
+
+    AIO->>LLM: Interpret intent and entities
+    Note over AIO,LLM: "Find delayed WBS items for campaign named Campaign X"
+    LLM-->>AIO: intent=get_delayed_wbs_items,\ncampaignName=Campaign X,\nfilters={status: delayed}
+
+    AIO->>MCP: POST /tools/campaigns/resolve
+    Note over AIO,MCP: { campaignName: "Campaign X" }
+
+    MCP->>Camp: GET /api/campaigns?name=Campaign%20X
+    Camp-->>MCP: 200 OK [{campaignId, name, status}]
+    MCP-->>AIO: campaignId=CMP-1024
+
+    AIO->>MCP: POST /tools/access/check
+    Note over AIO,MCP: { userId, resourceType: "Campaign", resourceId: "CMP-1024", action: "read" }
+
+    MCP->>Auth: POST /internal/authorization/check
+    Auth-->>MCP: allow
+    MCP-->>AIO: accessGranted=true
+
+    AIO->>MCP: POST /tools/wbs/search
+    Note over AIO,MCP: { campaignId: "CMP-1024", delayedOnly: true }
+
+    MCP->>WBS: GET /api/wbs-items?campaignId=CMP-1024&status=DELAYED
+    WBS-->>MCP: 200 OK [wbs items]
+
+    alt Delay must be derived, not stored
+        MCP->>Rule: POST /api/rules/evaluate/wbs-delay
+        Note over MCP,Rule: { campaignId, wbsItems, evaluationDate }
+        Rule-->>MCP: delayed flags / computed delay reasons
+    end
+
+    opt Need enrichment for comments / latest updates
+        MCP->>Search: GET /api/search?wbsIds=...&type=comment,status-update
+        Search-->>MCP: related notes / latest updates
+    end
+
+    MCP-->>AIO: delayed WBS items + optional reasons/context
+
+    AIO->>LLM: Format concise business response
+    Note over AIO,LLM: Summarize list, counts, major blockers
+    LLM-->>AIO: Final natural-language answer + table structure
+
+    AIO-->>BFF: 200 OK {summary, items, totals}
+    BFF-->>UI: 200 OK response payload
+    UI-->>User: Show delayed WBS items for Campaign X

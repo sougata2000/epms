@@ -1,0 +1,91 @@
+Attribute Name
+Data Type
+Constraints
+Journey Mapping
+Description
+campaign_id
+UUID
+PRIMARY KEY
+Launch Campaign, Discover Ideas
+Campaign ID
+Campaign_name
+VARCHAR(255)
+NOT NULL
+Launch Campaign
+Campaign name
+Campaign_Description
+TEXT
+NULL
+Launch Campaign
+Description
+Campaign_start_date
+DATE
+NULL
+Launch Campaign
+Start date
+Campaign_end_date
+DATE
+NULL
+Launch Campaign
+End date
+Campaign_voting_date
+DATE
+NULL
+Launch Campaign
+Voting date
+Campaign_status
+VARCHAR(50)
+NOT NULL, CHECK
+Launch Campaign
+Status
+iCampaign_mage_url
+VARCHAR(500)
+NULL
+Launch Campaign
+Campagn image
+Campaign_theme
+VARCHAR(100)
+NULL
+Launch Campaign
+Campaign Theme
+campaign_goal
+VARCHAR(500)
+NOT NULL
+Launch Campaign
+Campaign Goal
+Campaign_objective
+VARCHAR(500)
+NOT NULL
+Launch Campaign
+Campaign objective
+created_by
+VARCHAR(255)
+NOT NULL
+Launch Campaign
+Created by user
+Campaign_Success_Criteria
+VARCHAR(500)
+NOT NULL
+Launch Campaign
+Campaign Success criteria
+created_at
+TIMESTAMP
+NOT NULL
+Launch Campaign,
+Created timestamp
+updated_at
+TIMESTAMP
+NOT NULL
+Launch Campaign
+Updated timestamp
+published_at
+TIMESTAMP
+NULL
+Launch Campaign
+Published timestamp
+closed_at
+TIMESTAMP
+NULL
+Launch Campaign
+Closed timestamp
+	

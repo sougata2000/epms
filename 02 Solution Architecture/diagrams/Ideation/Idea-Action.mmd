@@ -1,0 +1,38 @@
+sequenceDiagram
+        autonumber
+        actor User
+        participant UI as React UI
+        participant APIGateway as API Gateway
+        participant BFF as Campaign BFF
+        participant Orch as Idea Submission Orchestrator
+        participant IdeaService as Idea Services
+        participant DB as Postgres Database [Write Store]      
+        participant Notify as Notification Service
+        participant Bus as Kafka/Event Bus
+        participant Logger as Logger Service
+
+        %% Step 1 Idea Search/Filter Flow By Business Persona
+        User->>UI: Business Persona Selects Idea <br/>from the List of Ideas (Post Search)
+        %% Step 2 Idea Action  By Business Persona
+        User->>UI: Evaluator Selects Action for <br/>an Idea from the list an against an <br/>Idea ID and Campaign ID.
+        %% Step 3 Idea Rating Submission By Evaluator
+        UI->>APIGateway: Send POST Request
+        Note over UI,APIGateway: Update/ PUT Idea Data <br/>with Action ( Accept/Reject/Park) (JSON)
+        APIGateway->>BFF: Forward Request to BFF
+        Note over APIGateway,BFF: Request Validation<br/>& Authentication Check 
+        BFF->>Orch: orchestrateIdeaSubmission<br/>(campaignId, IdeaID, ideaData, Action)
+        
+        %% Step 4: Store idea in database
+        Orch->>IdeaService : Update idea record against <br/>IdeaID and Campaign ID for the action.
+        IdeaService->>IdeaSchema: Update idea data <br/>(campaign_id, Idea Id,action, <br/>title, description, etc.)
+        IdeaService->>Bus: Publish Action Event
+        IdeaSchema-->>IdeaService: Action updated for Idea ID.
+        IdeaService-->>Orch: Action Updated <br/>for Idea ID successfully
+        Orch-->>BFF: Action submission response
+        Bus-->>Notify: Idea Action State Changed
+        Logger-->Bus: Persist notification logs
+        Notify-->>Bus: Notification sent
+        BFF-->>APIGateway: Success response
+        APIGateway-->>UI: Action Updated  successfully
+        UI-->>User: "Action for Idea submitted successfully"
+        Note over IdeaSchema: All idea data stored in PostgreSQL tables

@@ -1,0 +1,54 @@
+sequenceDiagram
+    actor User
+    participant UI as React UI
+    participant APIGateway as API Gateway
+    participant BFF as BFF Layer
+    participant IdeaServices as Idea Services
+    participant DB as Postgres Database [Read Store]
+
+    %% Idea Search/Filter Flow By Evaluator
+    User->>UI: 1. Invoke Search/List/Filter Idea by Evaluator
+    
+    UI->>APIGateway: 2. Send Search Request<br/>(Search Criteria)
+    Note over UI,APIGateway: GET/POST /api/ideas/search<br/>Parameters: filters, pagination
+    
+    APIGateway->>BFF: 3. Forward Request to BFF
+    Note over APIGateway,BFF: Request Validation<br/>& Authentication Check
+    
+    BFF->>IdeaServices: 4. Route to Idea Query Service
+    
+    %% Database Query Operations
+    alt Search by Idea
+        IdeaServices->>DB: 5a. Query by Idea Name/ID
+        DB-->>IdeaServices: 6a. Return Idea Results
+    else Search by User
+        IdeaService->>DB: 5b. Query by User/Owner
+        DB-->>IdeaServices: 6b. Return  Ideas by USer
+    else Search by Date
+        IdeaService->>DB: 5c. Query by Date Range
+        DB-->>IdeaServices: 6c. Return Date-Filtered Ideas
+    else List All (with Filters)
+        IdeaService->>DB: 5d. Query with Multiple Filters
+        DB-->>IdeaServices: 6d. Return Filtered Results
+    end
+    
+    %% Response Processing
+    IdeaServices-->>BFF: 7. Return Idea Data (JSON)
+    
+    BFF-->>APIGateway: 8. Aggregate & Transform Response
+    
+    APIGateway-->>UI: 9. Return JSON Response
+    Note over APIGateway,UI: HTTP 200 OK<br/>Content-Type: application/json
+    
+    UI-->>User: 10. Display Idea Results
+    Note over UI,User: Render campaign list<br/>with search/filter options
+    
+    %% Error Handling
+    alt Error Scenario
+        IdeaServices->>DB: Query Execution
+        DB-->>IdeaServices: Error Response
+        IdeaService-->>BFF: Error Details
+        BFF-->>APIGateway: Formatted Error
+        APIGateway-->>UI: HTTP Error (400/500)
+        UI-->>User: Display Error Message
+    end

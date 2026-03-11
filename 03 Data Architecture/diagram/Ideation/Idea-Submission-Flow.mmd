@@ -1,0 +1,85 @@
+sequenceDiagram
+    autonumber
+    actor User as User/Campaign Moderator
+    participant UI
+    participant APIGateway as API Gateway
+    participant BFF as Campaign BFF
+    participant Orch as Idea Submission Orchestrator
+    participant Campaign as Campaign Service
+    participant CampaignSchema as Campaign Schema PostgreSQL
+    participant Idea as Idea Service
+    participant IdeaSchema as Idea Schema PostgreSQL
+    participant Adapter as Document Adapter
+    participant Opentext as DocumentStore
+    participant Cache as Caching
+
+    Note over User,Cache: Idea Submission Flow
+
+    %% Step 1: User initiates idea creation
+    User->>UI: Navigate to create idea
+    UI->>APIGateway: Request campaigns for user
+    APIGateway->>BFF: Forward request + JWT
+    BFF->>Orch: Get eligible campaigns for user
+    
+    %% Step 2: Retrieve campaigns user is invited to
+    Orch->>Campaign: Fetch user's invited campaigns
+    Campaign->>CampaignSchema: Query campaigns by user invitation
+    CampaignSchema-->>Campaign: Return campaign list
+    Campaign-->>Orch: Campaign data
+    Orch-->>BFF: Campaign list
+    BFF-->>APIGateway: Campaign list JSON
+    APIGateway-->>UI: Campaign list JSON
+    UI-->>User: Display available campaigns
+    
+    %% Step 3: User selects campaign and creates idea
+    User->>UI: Select campaign and click "Create Idea"
+    UI->>UI: Open idea creation form
+    User->>UI: Fill idea details (title, description, etc.)
+    
+    %% Step 4: Load participants from cache
+    UI->>APIGateway: Request participant options
+    APIGateway->>BFF: Forward participant request
+    BFF->>Cache: Fetch cached participants
+    Cache-->>BFF: Return participant list
+    BFF-->>APIGateway: Participant list
+    APIGateway-->>UI: Participant list
+    UI-->>User: Display participants for selection
+    
+    User->>UI: Select/modify participants
+    
+    %% Step 5: Document upload
+    User->>UI: Upload supporting documents
+    UI->>APIGateway: Upload document request
+    APIGateway->>BFF: Forward document upload
+    BFF->>Adapter: Store document
+    Adapter->>Opentext: Upload document to store
+    Opentext-->>Adapter: Document ID and metadata
+    Adapter-->>BFF: Document reference
+    BFF-->>APIGateway: Document upload success
+    APIGateway-->>UI: Document uploaded
+    UI-->>User: Document upload confirmation
+    
+    %% Step 6: Submit idea
+    User->>UI: Submit idea against Campaign ID
+    UI->>APIGateway: POST /ideas {campaignId, ideaDetails, participants, documentRefs}
+    APIGateway->>BFF: Forward idea submission
+    BFF->>Orch: orchestrateIdeaSubmission(campaignId, ideaData)
+    
+    %% Step 7: Store idea in database
+    Orch->>Idea: Create idea record
+    Idea->>IdeaSchema: INSERT idea data (campaign_id, title, description, etc.)
+    IdeaSchema-->>Idea: Idea created with ID
+    
+    Idea->>IdeaSchema: INSERT idea participants
+    IdeaSchema-->>Idea: Participants linked
+    
+    Idea->>IdeaSchema: INSERT idea documents
+    IdeaSchema-->>Idea: Documents linked
+    
+    Idea-->>Orch: Idea created successfully with ideaId
+    Orch-->>BFF: Idea submission response
+    BFF-->>APIGateway: Success response
+    APIGateway-->>UI: Idea created successfully
+    UI-->>User: "Idea submitted successfully"
+    
+    Note over IdeaSchema: All idea data stored in PostgreSQL tables

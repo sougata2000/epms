@@ -1,0 +1,119 @@
+
+erDiagram
+    CAMPAIGN {
+        UUID campaign_id PK
+        VARCHAR campaign_name
+        TEXT campaign_description
+        DATE campaign_start_date
+        DATE campaign_end_date
+        DATE campaign_voting_date
+        VARCHAR campaign_status
+        VARCHAR campaign_image_url
+        VARCHAR campaign_theme
+        VARCHAR campaign_goal
+        VARCHAR campaign_objective
+        UUID created_by FK
+        VARCHAR campaign_success_criteria
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TIMESTAMP published_at
+        TIMESTAMP closed_at
+    }
+
+    CAMPAIGN_CONTRIBUTORS {
+        UUID campaign_id PK, FK
+        UUID user_id PK, FK
+        VARCHAR role
+        TIMESTAMP added_at
+        UUID added_by FK
+    }
+
+    CAMPAIGN_DISTRIBUTION_LIST {
+        UUID campaign_id PK, FK
+        UUID user_id PK, FK
+        VARCHAR distribution_list
+        TIMESTAMP added_at
+        UUID added_by FK
+    }
+
+    CAMPAIGN_GROUPS {
+        UUID campaign_id PK, FK
+        UUID group_id PK, FK
+        UUID user_id PK, FK
+        TIMESTAMP added_at
+        UUID added_by FK
+    }
+
+    CAMPAIGN_ATTACHMENTS {
+        UUID attachment_id PK
+        UUID campaign_id FK
+        VARCHAR file_name
+        VARCHAR file_url
+        VARCHAR file_type
+        BIGINT file_size
+        UUID uploaded_by FK
+        TIMESTAMP uploaded_at
+    }
+
+    IDEAS {
+        UUID idea_id PK
+        VARCHAR title
+        TEXT description
+        UUID campaign_id FK
+        VARCHAR goal_type
+        INT completeness
+        INT specificity
+        UUID created_by FK
+        VARCHAR display_picture_url
+        VARCHAR status
+        VARCHAR action
+        DECIMAL rating
+        VARCHAR business_value
+        VARCHAR business_impact
+        DECIMAL estimated_budget
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TIMESTAMP submitted_at
+        TIMESTAMP reviewed_at
+        UUID reviewed_by FK
+        TEXT review_comments
+    }
+
+    IDEA_CONTRIBUTORS {
+        UUID idea_id PK, FK
+        UUID user_id PK, FK
+        VARCHAR role
+        TIMESTAMP added_at
+        UUID added_by FK
+    }
+
+    IDEA_ATTACHMENTS {
+        UUID attachment_id PK
+        UUID idea_id FK
+        VARCHAR file_name
+        VARCHAR file_url
+        VARCHAR file_type
+        BIGINT file_size
+        UUID uploaded_by FK
+        TIMESTAMP uploaded_at
+    }
+
+    USERS {
+        UUID user_id PK
+    }
+
+   
+
+    CAMPAIGN ||--o{ CAMPAIGN_CONTRIBUTORS : has
+    CAMPAIGN ||--o{ CAMPAIGN_DISTRIBUTION_LIST : has
+    CAMPAIGN ||--o{ CAMPAIGN_GROUPS : has
+    CAMPAIGN ||--o{ CAMPAIGN_ATTACHMENTS : has
+    
+
+    IDEAS ||--o{ IDEA_CONTRIBUTORS : has
+    IDEAS ||--o{ IDEA_ATTACHMENTS : has
+IDEAS ||--o{ CAMPAIGN : has
+    USERS ||--o{ CAMPAIGN : creates
+    USERS ||--o{ IDEA_ATTACHMENTS : uploads
+
+   

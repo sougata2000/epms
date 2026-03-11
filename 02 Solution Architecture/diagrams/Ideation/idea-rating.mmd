@@ -1,0 +1,34 @@
+sequenceDiagram
+        autonumber
+        actor User
+        participant UI as React UI
+        participant APIGateway as API Gateway
+        participant BFF as Campaign BFF
+        participant Orch as Idea Submission Orchestrator
+        participant IdeaService as Idea Services
+        participant DB as Postgres Database [Write Store]
+
+        %% Step 1 Idea Search/Filter Flow By Evaluator
+        User->>UI: Evaluator Selects Rating Item from the List of Ideas (Post Search)
+        %% Step 2 Idea Rating By Evaluator
+        User->>UI: Evaluator Selects Rating for the Idea ( Rating Slider)
+        User->>UI: Evaluator Submits Idea with Rating for an Idea ID and Campaign ID.
+        %% Step 3 Idea Rating Submission By Evaluator
+        UI->>APIGateway: Send POST Request
+        Note over UI,APIGateway: POST Idea Data with Rating (JSON)
+        APIGateway->>BFF: Forward Request to BFF
+        Note over APIGateway,BFF: Request Validation<br/>& Authentication Check 
+        BFF->>Orch: orchestrateIdeaSubmission(campaignId, ideaData, Rating)
+        
+        %% Step 4: Store idea in database
+        Orch->>IdeaService : Update idea record against IdeaID and Campaign ID.
+        IdeaService->>IdeaSchema: Update idea data (campaign_id, Idea Id, title, description, etc.)
+        IdeaSchema-->>IdeaService: Rating Updated for Idea ID.
+
+        IdeaService-->>Orch: Rating Updated for Idea ID successfully 
+        Orch-->>BFF: Ratiing submission response
+        BFF-->>APIGateway: Success response
+        APIGateway-->>UI: Idea created successfully
+        UI-->>User: "Idea submitted successfully"
+        
+        Note over IdeaSchema: All idea data stored in PostgreSQL tables

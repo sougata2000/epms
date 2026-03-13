@@ -1,0 +1,48 @@
+flowchart TD
+
+    A[Project Initiation]
+
+    A --> BP[Business Partner]
+    A --> BPM[Business Partner Manager]
+    A --> GH[Governance Head]
+    A --> COE[CoE Head]
+    A --> BU[Business User]
+
+    %% Business Partner
+    BP --> BP1[View Projects<br/>View list of demands]
+    BP --> BP2[Create Program<br/>Creates Program ID]
+    BP --> BP3[Create Project<br/>Against existing Demand ID<br/>Creates Project ID]
+    BP --> BP4[Create VCF<br/>Against Program ID]
+    BP --> BP5[Associate Project with Program ID]
+    BP --> BP6[Update VCF<br/>Against Program ID]
+
+    BP2 --> BP4
+    BP3 --> BP5
+    BP4 --> BP5
+    BP5 --> BP6
+
+    %% Business Partner Manager
+    BPM --> BPM1[View Projects<br/>View list of projects]
+    BPM --> BPM2[Approve Project]
+
+    %% Governance Head
+    GH --> GH1[View Projects<br/>View list of programs]
+    GH --> GH2[Approve Project]
+
+    %% CoE Head
+    COE --> COE1[View Projects<br/>View list of programs]
+    COE --> COE2[Approve Project<br/>Against Project ID]
+    COE --> COE3[Assign Project Manager<br/>For approved projects<br/>Against Project ID]
+
+    COE2 --> COE3
+
+    %% Business User
+    BU --> BU1[View Projects<br/>View list of approved projects]
+    BU --> BU2[Upload BRD<br/>Against Project ID]
+
+    %% Approval flow
+    BP3 --> BPM2
+    BPM2 --> GH2
+    GH2 --> COE2
+    COE3 --> BU1
+    BU1 --> BU2

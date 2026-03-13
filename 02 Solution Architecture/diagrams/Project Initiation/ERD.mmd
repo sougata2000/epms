@@ -1,0 +1,179 @@
+
+erDiagram
+
+    DEMAND {
+        VARCHAR(20) demand_id PK
+        VARCHAR(255) demand_title
+        TEXT demand_description
+        VARCHAR(30) status
+        VARCHAR(50) created_by
+        TIMESTAMP created_at
+    }
+
+    PROJECT {
+        VARCHAR(20) project_id PK
+        VARCHAR(20) demand_id FK
+        VARCHAR(20) program_id FK
+        VARCHAR(255) project_name
+        VARCHAR(50) project_type
+        DATE expected_start_date
+        DATE expected_end_date
+        DECIMAL budget_amount
+        VARCHAR(10) budget_currency
+        VARCHAR(30) status
+        VARCHAR(20) manpower_estimate_id FK
+        VARCHAR(30) project_status
+        VARCHAR(30) Approval_Status_code FK
+        VARCHAR(50) Approval_stage_Code FK
+        VARCHAR(50) created_by
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    MANPOWER_ESTIMATE {
+        VARCHAR(20) manpower_estimate_id PK
+        VARCHAR(20) project_id FK
+        VARCHAR(100) skillset
+        INT headcount
+        DECIMAL utilization_percentage
+        DATE start_date
+        DATE end_date
+        VARCHAR(255) remarks
+        TIMESTAMP created_at
+    }
+
+    PROJECT_APPROVAL {
+        VARCHAR(20) approval_id PK
+        VARCHAR(20) project_id FK
+        VARCHAR(50) approver_user_id FK
+        VARCHAR(50) approver_role
+        VARCHAR(50) approval_stage
+        VARCHAR(30) approval_status
+        VARCHAR(255) comments
+        TIMESTAMP action_at
+    }
+
+    PROGRAM {
+        VARCHAR(20) program_id PK
+        VARCHAR(20) demand_id FK
+        VARCHAR(255) program_name
+        TEXT program_description
+        INT program_start_year
+        VARCHAR(50) program_type
+        VARCHAR(50) ownership_type
+        VARCHAR(50) business_spoc_id FK
+        VARCHAR(100) business_vertical
+        VARCHAR(50) investment_category
+        VARCHAR(100) program_classification
+        VARCHAR(20) program_de_pillar_id FK
+        VARCHAR(30) program_status
+        VARCHAR(30) Approval_Status_code FK
+        VARCHAR(50) Approval_stage_Code FK
+        BOOLEAN is_approved
+        VARCHAR(50) created_by
+        TIMESTAMP created_at
+        VARCHAR(50) updated_by
+        TIMESTAMP updated_at
+    }
+
+    PROGRAM_DE_PILLAR {
+        VARCHAR(20) program_de_pillar_id PK
+        VARCHAR(20) program_id FK
+        VARCHAR(20) de_pillar
+    }
+
+    VCF {
+        VARCHAR(20) program_id PK, FK
+        VARCHAR(20) value_lever_id FK
+        VARCHAR(20) cost_lever_id FK
+        VARCHAR(30) status
+        DECIMAL npv
+        DECIMAL irr
+        VARCHAR(50) created_by
+        TIMESTAMP created_at
+        VARCHAR(50) updated_by
+        TIMESTAMP updated_at
+        VARCHAR(500) remarks
+    }
+
+    VCF_VALUE_LEVER {
+        VARCHAR(20) program_id FK
+        VARCHAR(20) value_lever_id PK
+        INT effective_year
+        VARCHAR(255) lever_name
+        DECIMAL amount
+        INT display_order
+        BOOLEAN is_active
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    VCF_COST_LEVER {
+        VARCHAR(20) program_id FK
+        VARCHAR(20) cost_lever_id PK
+        INT effective_year
+        VARCHAR(255) Cost_lever_name
+        DECIMAL amount
+        INT display_order
+        BOOLEAN is_active
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    VCF_VERSION_HISTORY {
+        VARCHAR(20) history_id PK
+        VARCHAR(20) value_lever_id PK, FK
+        VARCHAR(20) cost_lever_id PK, FK
+        INT version_no
+        VARCHAR(500) change_summary
+        VARCHAR(50) changed_by FK
+        TIMESTAMP changed_at
+    }
+
+    APPROVAL_WORKFLOW_STEP {
+        VARCHAR(20) workflow_step_id PK
+        VARCHAR(20) entity_type
+        VARCHAR(20) entity_id
+        VARCHAR(50) stage_code FK
+        VARCHAR(50) approver_user_id FK
+        VARCHAR(30) step_status
+        VARCHAR(500) comments
+        TIMESTAMP action_at
+        INT sequence_no
+    }
+
+    APPROVAL_STATUS_MASTER {
+        VARCHAR(50) approval_status_code PK
+        VARCHAR(100) approval_status_name
+        BOOLEAN is_active
+    }
+
+    APPROVAL_STAGE_MASTER {
+        VARCHAR(50) stage_code PK
+        VARCHAR(100) stage_name
+        BOOLEAN is_active
+    }
+
+ DEMAND ||--o{ PROGRAM : creates
+    DEMAND ||--o{ PROJECT : creates
+
+    PROGRAM ||--o{ PROJECT : groups
+    PROGRAM ||--|| VCF : has
+    PROGRAM ||--o{ PROGRAM_DE_PILLAR : classified_by
+
+    PROJECT ||--o{ MANPOWER_ESTIMATE : has
+    PROJECT ||--o{ PROJECT_APPROVAL : approved_through
+    PROJECT ||--o{ APPROVAL_WORKFLOW_STEP : progresses_through
+
+    PROGRAM ||--o{ APPROVAL_WORKFLOW_STEP : progresses_through
+
+    VCF ||--o{ VCF_VALUE_LEVER : contains
+    VCF ||--o{ VCF_COST_LEVER : contains
+    VCF ||--o{ VCF_VERSION_HISTORY : versioned_by
+
+    APPROVAL_STATUS_MASTER ||--o{ PROJECT : status_of
+    APPROVAL_STATUS_MASTER ||--o{ PROGRAM : status_of
+
+    APPROVAL_STAGE_MASTER ||--o{ PROJECT : stage_of
+    APPROVAL_STAGE_MASTER ||--o{ PROGRAM : stage_of
+    APPROVAL_STAGE_MASTER ||--o{ APPROVAL_WORKFLOW_STEP : drives

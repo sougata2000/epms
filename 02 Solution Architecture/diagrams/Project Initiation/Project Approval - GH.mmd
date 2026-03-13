@@ -1,0 +1,54 @@
+sequenceDiagram
+autonumber
+actor GOV as Governance Head
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PJO as Project Journey <br/>Orchestrator
+participant WF as Temporal Workflow
+participant PS as Project Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service (Indexing Only)
+
+GOV->>UI: Approve Project
+UI->>APIG: POST /projects/{projectId}/approve
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward approval request
+BFF->>PJO: Initiate approval action
+
+PJO->>WF: Signal Governance approval for projectId
+WF-->>PJO: Governance stage accepted
+
+PJO->>PS: Update Project_Approval set <br/>approval_status='APPROVED', action_at, comments
+PS->>DB: UPDATE Project_Approval
+DB-->>PS: Updated
+
+PJO->>PS: Update Approval_Workflow_Step <br/>set step_status='APPROVED', action_at
+PS->>DB: UPDATE Approval_Workflow_Step
+DB-->>PS: Updated
+
+PJO->>PS: Update Project set Approval_Status_code='IN_APPROVAL', Approval_stage_Code='COE_APPROVAL'
+PS->>DB: UPDATE Project
+DB-->>PS: Updated
+
+PJO->>PS: Insert next approver step in <br/>Approval_Workflow_Step for CoE Head
+PS->>DB: INSERT Approval_Workflow_Step
+DB-->>PS: Inserted
+
+PS-->>PJO: Approval persisted
+
+PJO->>BUS: Publish ProjectApprovalStageCompleted event
+BUS-->>NOTIF: Notify CoE Head
+BUS-->>LOG: Log Governance approval
+BUS-->>SEARCH: Update project index
+
+PJO-->>BFF: Approval response
+BFF-->>APIG: Response
+APIG-->>UI: Project approved successfully
+UI-->>GOV: Show success

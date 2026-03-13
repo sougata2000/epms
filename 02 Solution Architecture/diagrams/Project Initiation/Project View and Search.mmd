@@ -1,0 +1,31 @@
+sequenceDiagram
+autonumber
+actor BP as Business Partner<br/>Business Partner Manager<br/>Governance Head<br/>CoE Head<br/>Business User
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant CACHE as Redis Cache
+participant PS as Project Service (Query)
+participant RR as PostgreSQL <br/>Read Replica
+
+BP->>UI: Search / filter projects
+UI->>APIG: GET /projects?filters
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+APIG->>BFF: Forward request
+
+BFF->>CACHE: Check cached query result
+alt Cache Hit
+    CACHE-->>BFF: Project list
+else Cache Miss
+    BFF->>PS: Fetch projects with filters
+    PS->>RR: Query read replica
+    RR-->>PS: Project list
+    PS-->>BFF: Response
+    BFF->>CACHE: Store cached result
+end
+
+BFF-->>APIG: Project list
+APIG-->>UI: Display projects
+UI-->>BP: View results

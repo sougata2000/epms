@@ -1,0 +1,64 @@
+%%Part 2 — Update status, approval stage, workflow step, and publish side effects
+sequenceDiagram
+autonumber
+participant BFF as Initiation BFF
+participant PJO as Project Journey Orchestrator
+participant PS as Project Service
+participant PRS as Program Service
+participant DB as PostgreSQL
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service(Indexing)
+
+BFF->>PJO: Continue orchestration <br/>after create result
+
+alt Program exists and project linked successfully
+    PJO->>PS: Update project_status= <br/>DRAFT / SUBMITTED
+    PS->>DB: Update project table
+    DB-->>PS: Updated
+    PS-->>PJO: Status updated
+
+    PJO->>PS: Update approval_status_code= <br/>NOT_SUBMITTED
+    PS->>DB: Update project <br/>approval status reference
+    DB-->>PS: Updated
+    PS-->>PJO: Approval status updated
+
+    PJO->>PS: Update approval_stage_code=<br/>BP_DRAFT
+    PS->>DB: Update project <br/>approval stage reference
+    DB-->>PS: Updated
+    PS-->>PJO: Approval stage updated
+
+    PJO->>PS: Create workflow step entry
+    PS->>DB: Insert Approval_Workflow_Step
+    DB-->>PS: Inserted
+    PS-->>PJO: Workflow step created
+
+    PJO->>BUS: Publish ProjectCreated event
+else Program not found and draft project saved
+    PJO->>PS: Update project_status = DRAFT
+    PS->>DB: Update project table
+    DB-->>PS: Updated
+    PS-->>PJO: Status updated
+
+    PJO->>PS: Update approval_status_code= <br/>NOT_SUBMITTED
+    PS->>DB: Update approval <br/>status reference
+    DB-->>PS: Updated
+    PS-->>PJO: Approval status updated
+
+    PJO->>PS: Update approval_stage_code= <br/>BP_DRAFT
+    PS->>DB: Update approval stage reference
+    DB-->>PS: Updated
+    PS-->>PJO: Approval stage updated
+
+    PJO->>PS: Create workflow<br/>step entry for draft
+    PS->>DB: Insert Approval_Workflow_Step
+    DB-->>PS: Inserted
+    PS-->>PJO: Workflow step created
+
+    PJO->>BUS: Publish <br/>ProjectDraftCreated event
+end
+
+BUS-->>NOTIF: ProjectCreated / ProjectDraftCreated
+BUS-->>LOG: ProjectCreated / ProjectDraftCreated
+BUS-->>SEARCH: Index project for future search

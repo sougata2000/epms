@@ -1,0 +1,54 @@
+sequenceDiagram
+autonumber
+actor BPM as Business Partner Manager
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PJO as Project Journey <br/>Orchestrator
+participant WF as Temporal Workflow
+participant PS as Project Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+BPM->>UI: Approve Project
+UI->>APIG: POST /projects/{projectId}/approve
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward approval request
+BFF->>PJO: Initiate approval action
+
+PJO->>WF: Signal BPM approval for projectId
+WF-->>PJO: BPM stage accepted
+
+PJO->>PS: Update Project_Approval set <br/>approval_status='APPROVED', action_at, comments
+PS->>DB: UPDATE Project_Approval
+DB-->>PS: Updated
+
+PJO->>PS: Update Approval_Workflow_Step set <br/>step_status='APPROVED', action_at
+PS->>DB: UPDATE Approval_Workflow_Step
+DB-->>PS: Updated
+
+PJO->>PS: Update Project set <br/>Approval_Status_code='IN_APPROVAL', <br/>Approval_stage_Code='GOV_APPROVAL'
+PS->>DB: UPDATE Project
+DB-->>PS: Updated
+
+PJO->>PS: Insert next approver step in <br/>Approval_Workflow_Step for Governance Head
+PS->>DB: INSERT Approval_Workflow_Step
+DB-->>PS: Inserted
+
+PS-->>PJO: Approval persisted
+
+PJO->>BUS: Publish ProjectApprovalStageCompleted event
+BUS-->>NOTIF: Notify Governance Head
+BUS-->>LOG: Log BPM approval
+BUS-->>SEARCH: Update project index
+
+PJO-->>BFF: Approval response
+BFF-->>APIG: Response
+APIG-->>UI: Project approved successfully
+UI-->>BPM: Show success

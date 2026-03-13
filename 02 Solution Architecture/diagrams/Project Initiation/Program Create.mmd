@@ -1,0 +1,93 @@
+%% Create Program against Demand ID
+%%
+%%	Demand is validated first
+%%	Program is created against an existing Demand ID
+%%	Business SPOC / employee details may be fetched from HRMS via Service Adapter
+%%	Program is initially saved in DRAFT
+%%	Orchestrator coordinates:
+%%	demand validation
+%%	    HRMS lookup
+%%	    program creation
+%%	    status / approval status / stage initialization
+%%	    workflow step creation
+%%	    Notification and logging happen through event-based communication
+%%	    Search service is only used for future indexing
+%%	    Redis may be used for demand lookup caching
+
+
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PROGJO as Program Journey <br/>Orchestrator
+participant DS as Demand Service
+participant CACHE as Redis Cache
+participant ADAPTER as Service Adapter
+participant PRS as Program Service
+participant DB as PostgreSQL
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+BP->>UI: Enter program <br/>details with Demand ID
+UI->>APIG: POST /programs/initiate
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+APIG->>BFF: Forward request<br/> for program initiation
+BFF->>PROGJO: Initiate program<br/> creation journey
+
+PROGJO->>DS: Validate Demand ID
+DS->>CACHE: Check demand cache
+alt Demand cache hit
+    CACHE-->>DS: Demand details
+else Demand cache miss
+    DS->>DB: Fetch demand
+    DB-->>DS: Demand details
+    DS->>CACHE: Update demand cache
+end
+DS-->>PROGJO: Demand valid
+
+opt Business SPOC / HRMS validation needed
+    PROGJO->>ADAPTER: Fetch Business<br/> SPOC details from HRMS
+    ADAPTER-->>PROGJO: Employee profile<br/> and business vertical
+end
+
+PROGJO->>PRS: Create program in DRAFT
+PRS->>DB: Insert Program record
+DB-->>PRS: Program ID generated
+PRS-->>PROGJO: Program created
+
+PROGJO->>PRS: Update program_status=<br/> DRAFT
+PRS->>DB: Update Program status
+DB-->>PRS: Updated
+PRS-->>PROGJO: Program status updated
+
+PROGJO->>PRS: Update approval_status_code=<br/> NOT_SUBMITTED
+PRS->>DB: Update approval status reference
+DB-->>PRS: Updated
+PRS-->>PROGJO: Approval status updated
+
+PROGJO->>PRS: Update approval_stage_code = <br/>BP_DRAFT
+PRS->>DB: Update approval <br/>stage reference
+DB-->>PRS: Updated
+PRS-->>PROGJO: Approval stage updated
+
+PROGJO->>PRS: Create workflow step entry
+PRS->>DB: Insert Approval_Workflow_Step
+DB-->>PRS: Inserted
+PRS-->>PROGJO: Workflow step created
+
+PROGJO->>BUS: Publish ProgramCreated event
+
+BUS-->>NOTIF: ProgramCreated
+BUS-->>LOG: ProgramCreated
+BUS-->>SEARCH: ProgramCreated <br/>(Index for future search)
+
+PROGJO-->>BFF: Program creation response
+BFF-->>APIG: Response
+APIG-->>UI: Program created
+UI-->>BP: Display success message

@@ -1,0 +1,51 @@
+sequenceDiagram
+autonumber
+actor COE as CoE Head
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PJO as Project Journey <br/>Orchestrator
+participant ADAPTER as Service Adapter
+participant PS as Project Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+COE->>UI: Assign Project Manager <br/>for approved project
+UI->>APIG: POST /projects/{projectId}/assign-project-manager
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward assign PM request
+BFF->>PJO: Initiate PM assignment action
+
+PJO->>PS: Fetch Project from Project table
+PS->>DB: SELECT Project
+DB-->>PS: Project details
+PS-->>PJO: Project returned
+
+PJO->>ADAPTER: Fetch Project Manager profile from SAP HRMS
+ADAPTER-->>PJO: PM profile validated
+
+PJO->>PS: Update Project set project_manager_id,<br/>project_status='READY_FOR_BRD', <br/>updated_at in Project table
+PS->>DB: UPDATE Project
+DB-->>PS: Updated
+
+PJO->>PS: Insert PM assignment step in <br/>Approval_Workflow_Step table
+PS->>DB: INSERT Approval_Workflow_Step
+DB-->>PS: Inserted
+
+PS-->>PJO: Project Manager assignment persisted
+
+PJO->>BUS: Publish ProjectManagerAssigned event
+BUS-->>NOTIF: Notify assigned Project <br/>Manager and Business Partner
+BUS-->>LOG: Log PM assignment action
+BUS-->>SEARCH: Update project index
+
+PJO-->>BFF: Assignment response
+BFF-->>APIG: Response
+APIG-->>UI: Project Manager assigned successfully
+UI-->>COE: Show success

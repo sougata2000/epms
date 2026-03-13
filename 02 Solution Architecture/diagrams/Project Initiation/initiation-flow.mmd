@@ -1,0 +1,11 @@
+graph TD
+
+    User --> UI
+    UI --> API_Gateway
+    API_Gateway --> Initiation_BFF
+    Initiation_BFF --> Orchestrator
+    Orchestrator --> Domain_Microservices
+    Domain_Microservices --> PostgreSQL
+    Orchestrator --> Temporal_Workflow
+    Orchestrator --> Notification_Adapter_Logger["Notification / Adapter / Logger"]
+    Orchestrator --> Redis["Redis (for reads)"]

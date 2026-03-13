@@ -1,0 +1,55 @@
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PROGJO as Program Journey <br/>Orchestrator
+participant CACHE as Redis Cache
+participant PRS as Program Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+BP->>UI: Enter VCF details for Program
+UI->>APIG: POST /programs/{programId}/vcf
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward request
+BFF->>PROGJO: Initiate VCF creation
+
+PROGJO->>CACHE: Check program cache
+alt Cache hit
+    CACHE-->>PROGJO: Program details
+else Cache miss
+    PROGJO->>PRS: Fetch program
+    PRS->>DB: Query program
+    DB-->>PRS: Program details
+    PRS-->>PROGJO: Response
+    PROGJO->>CACHE: Update program cache
+end
+
+PROGJO->>PRS: Create VCF for program
+
+PRS->>DB: Insert VCF record
+PRS->>DB: Insert VCF Value Levers
+PRS->>DB: Insert VCF Cost Levers
+
+DB-->>PRS: VCF stored
+
+PRS-->>PROGJO: VCF created
+
+PROGJO->>BUS: Publish VCFCreated event
+
+BUS-->>NOTIF: VCFCreated
+BUS-->>LOG: VCFCreated
+BUS-->>SEARCH: Update program index
+
+PROGJO-->>BFF: Response
+BFF-->>APIG: Response
+APIG-->>UI: VCF created successfully
+UI-->>BP: Display confirmation

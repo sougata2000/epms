@@ -1,0 +1,56 @@
+sequenceDiagram
+autonumber
+actor APR as Approver (BPM / <br/>Governance Head / <br/>CoE Head)
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PJO as Project Journey <br/>Orchestrator
+participant WF as Temporal Workflow
+participant PS as Project Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+APR->>UI: Reject / <br/>Send Back Project
+UI->>APIG: POST /projects/{projectId}/reject-or-sendback
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward reject / <br/>send back request
+BFF->>PJO: Initiate reject / <br/>send back action
+
+PJO->>WF: Signal reject / s<br/>end back with approver_role, <br/>stage_code, comments
+WF-->>PJO: Stage action accepted
+
+PJO->>PS: Update Project_Approval set <br/>approval_status='REJECTED' or 'SENT_BACK', <br/>approver_user_id, approver_role, <br/>approval_stage, comments, action_at
+PS->>DB: UPDATE Project_Approval
+DB-->>PS: Updated
+
+PJO->>PS: Update Approval_Workflow_Step set <br/>step_status='REJECTED' or 'SENT_BACK', approver_user_id, <br/>comments, action_at
+PS->>DB: UPDATE Approval_Workflow_Step
+DB-->>PS: Updated
+
+alt Action = REJECTED
+    PJO->>PS: Update Project set <br/>project_status='REJECTED', Approval_Status_code='REJECTED', Approval_stage_Code=stage_code
+    PS->>DB: UPDATE Project
+    DB-->>PS: Updated
+else Action = SENT_BACK
+    PJO->>PS: Update Project set project_status='REVISION_REQUIRED', <br/>Approval_Status_code='SENT_BACK', <br/>Approval_stage_Code='BP_DRAFT'
+    PS->>DB: UPDATE Project
+    DB-->>PS: Updated
+end
+
+PS-->>PJO: Reject / send back persisted
+
+PJO->>BUS: Publish ProjectRejected or <br/>ProjectSentBack event
+BUS-->>NOTIF: Notify Business Partner
+BUS-->>LOG: Log reject / send back action
+BUS-->>SEARCH: Update project index
+
+PJO-->>BFF: Action response
+BFF-->>APIG: Response
+APIG-->>UI: Project action completed
+UI-->>APR: Show success

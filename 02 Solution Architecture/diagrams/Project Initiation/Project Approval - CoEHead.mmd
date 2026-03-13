@@ -1,0 +1,50 @@
+sequenceDiagram
+autonumber
+actor COE as CoE Head
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PJO as Project Journey <br/>Orchestrator
+participant WF as Temporal Workflow
+participant PS as Project Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+COE->>UI: Approve Project
+UI->>APIG: POST /projects/{projectId}/approve
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward approval request
+BFF->>PJO: Initiate approval action
+
+PJO->>WF: Signal CoE approval for <br/>projectId
+WF-->>PJO: CoE stage accepted
+
+PJO->>PS: Update Project_Approval set <br/>approval_status='APPROVED', <br/>action_at, comments
+PS->>DB: UPDATE Project_Approval
+DB-->>PS: Updated
+
+PJO->>PS: Update Approval_Workflow_Step <br/>set step_status='APPROVED', action_at
+PS->>DB: UPDATE Approval_Workflow_Step
+DB-->>PS: Updated
+
+PJO->>PS: Update Project set <br/>project_status='APPROVED', Approval_Status_code='APPROVED', <br/>Approval_stage_Code='FINAL_APPROVED'
+PS->>DB: UPDATE Project
+DB-->>PS: Updated
+
+PS-->>PJO: Final approval persisted
+
+PJO->>BUS: Publish ProjectApproved event
+BUS-->>NOTIF: Notify Business <br/>Partner and CoE team
+BUS-->>LOG: Log final approval
+BUS-->>SEARCH: Update project index
+
+PJO-->>BFF: Approval response
+BFF-->>APIG: Response
+APIG-->>UI: Project approved <br/>successfully
+UI-->>COE: Show success

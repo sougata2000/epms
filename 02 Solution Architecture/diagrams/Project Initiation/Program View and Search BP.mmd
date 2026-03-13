@@ -1,0 +1,32 @@
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant CACHE as Redis Cache
+participant PRS as Program Service<br/>(Query)
+participant RR as PostgreSQL <br/>Read Replica
+
+BP->>UI: Search Programs
+UI->>APIG: GET /programs?filters
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward request
+
+BFF->>CACHE: Check program cache
+alt Cache Hit
+    CACHE-->>BFF: Program list
+else Cache Miss
+    BFF->>PRS: Fetch programs with filters
+    PRS->>RR: Query read replica
+    RR-->>PRS: Program list<br/>(Program Table)
+    PRS-->>BFF: Response
+    BFF->>CACHE: Store cache
+end
+
+BFF-->>APIG: Program list
+APIG-->>UI: Display programs
+UI-->>BP: View results

@@ -1,0 +1,58 @@
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+participant UI
+participant APIG as API Gateway
+participant IDAM as Azure AD / IDAM
+participant BFF as Initiation BFF
+participant PROGJO as Program Journey <br/>Orchestrator
+participant CACHE as Redis Cache
+participant PRS as Program Service
+participant DB as PostgreSQL Primary
+participant BUS as Event Bus
+participant NOTIF as Notification Service
+participant LOG as Logger Service
+participant SEARCH as Search Service <br/>(Indexing Only)
+
+BP->>UI: Update VCF for<br/> existing Program
+UI->>APIG: PUT /programs/{programId}/vcf
+APIG->>IDAM: Authenticate request
+IDAM-->>APIG: Authentication success
+
+APIG->>BFF: Forward request
+BFF->>PROGJO: Initiate VCF update
+
+PROGJO->>CACHE: Check program <br/> VCF cache
+alt Cache hit
+    CACHE-->>PROGJO: Program + VCF details
+else Cache miss
+    PROGJO->>PRS: Fetch program <br/>and current VCF
+    PRS->>DB: Query Program
+    PRS->>DB: Query current VCF
+    DB-->>PRS: Program + VCF details
+    PRS-->>PROGJO: Response
+    PROGJO->>CACHE: Update cache
+end
+
+PROGJO->>PRS: Update VCF <br/>for Program ID
+
+PRS->>DB: Fetch current VCF version
+DB-->>PRS: Current VCF version
+
+PRS->>DB: Insert VCF version history
+PRS->>DB: Update / Insert <br/>VCF Value Levers
+PRS->>DB: Update / Insert <br/>VCF Cost Levers
+
+DB-->>PRS: VCF updated <br/>successfully
+PRS-->>PROGJO: VCF updated
+
+PROGJO->>BUS: Publish <br/>VCFUpdated event
+
+BUS-->>NOTIF: VCFUpdated
+BUS-->>LOG: VCFUpdated
+BUS-->>SEARCH: Update program index
+
+PROGJO-->>BFF: Response
+BFF-->>APIG: Response
+APIG-->>UI: VCF updated <br/>successfully
+UI-->>BP: Display confirmation

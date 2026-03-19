@@ -1,0 +1,62 @@
+sequenceDiagram
+    participant User as Users<br/>(Web / Mobile)
+    participant IDP as Identity Provider<br/>(Cognito / Entra External ID)
+    participant Edge as Edge Security<br/>(WAF / TLS / DDoS Protection)
+    participant Gateway as API Gateway<br/>(Rate limiting / Auth validation)
+    participant BFF as BFF Layer<br/>(Journey-level validation)
+    participant Services as Microservices<br/>(Service-level validation)
+    participant Data as Data Layer<br/>(Encrypted storage)
+    participant Monitor as Monitoring & Security<br/>(CloudWatch / GuardDuty)
+
+    User->>IDP: 1. Login Request
+    activate IDP
+    IDP->>IDP: Authenticate user
+    IDP->>User: 2. JWT Token
+    deactivate IDP
+    
+    User->>Edge: 3. API Request + JWT
+    activate Edge
+    Edge->>Edge: WAF inspection<br/>TLS termination<br/>DDoS check
+    Edge->>Gateway: 4. Forward request
+    deactivate Edge
+    
+    activate Gateway
+    Gateway->>Gateway: Rate limiting check<br/>Basic auth validation
+    Gateway->>BFF: 5. Route request
+    deactivate Gateway
+    
+    activate BFF
+    BFF->>BFF: JWT validation (Journey-level)<br/>User context creation<br/>Authorization check
+    BFF->>Services: 6. Service call + Context
+    deactivate BFF
+    
+    activate Services
+    Services->>Services: JWT validation (Service-level)<br/>RBAC + ABAC enforcement<br/>Business logic execution
+    Services->>Data: 7. Data request
+    deactivate Services
+    
+    activate Data
+    Data->>Data: Access encrypted data<br/>(RDS / MongoDB / S3)<br/>TLS in transit
+    Data->>Services: 8. Data response
+    deactivate Data
+    
+    activate Services
+    Services->>Monitor: 9. Log activity
+    Services->>BFF: 10. Service response
+    deactivate Services
+    
+    activate BFF
+    BFF->>Gateway: 11. Response
+    deactivate BFF
+    
+    activate Gateway
+    Gateway->>Edge: 12. Response
+    deactivate Gateway
+    
+    activate Edge
+    Edge->>User: 13. Final response
+    deactivate Edge
+    
+    Monitor->>Monitor: CloudWatch logs<br/>GuardDuty analysis<br/>Security auditing
+    
+    Note over User,Monitor: End-to-end encrypted communication with multiple validation layers

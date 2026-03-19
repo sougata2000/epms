@@ -1,0 +1,65 @@
+Information Classification- Confidential
+
+ 
+As discussed, please find attached documents &  request IBM to consider the following key points while designing the Technical Architecture for the Project Management Tool.
+The objective is to ensure a scalable, secure, modular, and future ready architecture aligned with enterprise requirements.
+ 
+•	EA Review Template 
+•	Security Review Template 
+•	NFR Template 
+•	Coding Guidelines 
+o	Web 
+o	Mobile
+•	MSIL DevSecOps to follow 
+ 
+Middle> Qlik & MuleESB available in MSIL Ecosystem
+Cloud : AWS/Azure/GCP  
+ 
+MSIL Developer Portal: 
+•	MSIL Developer Portal- Maruti Developer Portal https://preprod.developersinmarutisuzuki.in/faq
+•	Refer FAQ Section- https://preprod.developersinmarutisuzuki.in/faq
+ 
+Steps: EA Review> Security Review> Infra Provisioning > Dev QA Prod 
+ 
+Scalability & Performance
+•	System should support horizontal and vertical scaling.
+•	Stateless service design where possible.
+•	Caching strategy (Redis/Elasticache) for high-traffic modules.
+b. High Availability & Resilience
+•	Graceful handling of service failures.
+•	Circuit breaker pattern for downstream dependencies.
+c. Security & Compliance
+•	Role-based and attribute-based access control.
+•	JWT/OAuth 2.0 authentication.
+•	API rate limiting, throttling, input sanitization.
+•	Audit logs for all CRUD operations.
+•	Data encryption (in transit + at rest).
+2. Recommended Microservices-Based Architecture
+•	IBM is requested to design the system following modular microservices principles, including:
+a. Service Decomposition
+Ideally separate services by domain/function:
+•	Project Service
+•	Task Management Service
+•	Resource Allocation Service
+•	Reporting & Analytics Service
+•	Notification Service
+•	User & Role Management Service
+•	Integration Service (SAP/ERP/AD/Other MSIL systems)
+3. Technology & Framework Considerations
+•	Container-based deployment (Docker + Kubernetes).
+•	CI/CD pipelines
+•	Logging & monitoring using ELK, Prometheus, Grafana.
+•	Prefer open standards to simplify future integrations.
+4. Integration Requirements
+Architecture must support easy integration with:
+•	Existing enterprise systems (Common Services, AD, etc.)
+•	Notification channels (Email, SMS, WhatsApp)
+•	API-based data exchange with other internal tools
+________________________________________
+5. NFR (Non-Functional Requirements)
+•	Response time: < 200 ms for standard transactions.
+•	Availability: 99.9% uptime.
+•	Multi-environment readiness (Dev, QA, UAT, Prod).
+•	Data archival policy, backup
+ 
+ 

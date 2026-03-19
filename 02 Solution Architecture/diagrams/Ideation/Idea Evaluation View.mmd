@@ -1,0 +1,35 @@
+sequenceDiagram
+    autoNumber
+    actor EV as Evaluator
+    participant UI as UI
+    participant APIG as API Gateway
+    participant BFF as Idea BFF
+    participant IS as Idea Service
+    participant CS as Campaign Service
+    participant DBI as Idea DB
+    
+
+    EV->>UI: Open "Ideas to Evaluate" screen
+    UI->>APIG: GET /ideas?evaluatorId={evaluatorId}
+    APIG->>BFF: Forward request
+
+    BFF->>IS: Get ideas <br/>with voting score >= 4
+    IS->>DBI: Read IDEA + IDEA_VOTING_SUMMARY
+    DBI-->>IS: Eligible ideas <br/>with idea_id, campaign_id, current_stage_id
+
+    IS->>BFF: Filter rated ideas 
+    BFF-->>APIG: Eligible <br/>ideas for evaluator
+    APIG-->>UI: Display idea list
+
+    EV->>UI: Click Idea Name
+    UI->>APIG: GET /ideas/{ideaId}/details
+    APIG->>BFF: Forward request
+
+    BFF->>IS: Get idea details
+    IS->>DBI: Read IDEA by idea_id
+    DBI-->>IS: Idea data
+
+    IS->>BFF: Get Idea details
+
+    BFF-->>APIG: Consolidated <br/>idea details response
+    APIG-->>UI: Load Details tab

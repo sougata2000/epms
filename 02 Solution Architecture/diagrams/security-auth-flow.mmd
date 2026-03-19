@@ -1,0 +1,25 @@
+flowchart TD
+    A[User / Mobile / Web] --> B[Enterprise IDAM / IdP]
+    
+    B --> |OAuth2 / OIDC<br/>MFA<br/>JWT issuance| C[CloudFront / WAF /<br/>Edge Security]
+    
+    C --> D[API Gateway / Ingress]
+    
+    D --> E[BFF<br/>Backend for Frontend]
+    
+    E --> |JWT validation<br/>Journey-level authorization<br/>User context creation| F[Domain Microservices]
+    
+    F --> |JWT validation again<br/>Service-level authorization<br/>Business rule enforcement| G[Data Layer]
+    
+    G --> |RDS / S3 / Cache / Logs<br/>Encryption at rest<br/>TLS in transit| H[Monitoring / Audit / SIEM]
+    
+    style A fill:#e1f5ff
+    style B fill:#fff3e0
+    style C fill:#fce4ec
+    style D fill:#f3e5f5
+    style E fill:#e8f5e9
+    style F fill:#fff9c4
+    style G fill:#e0f2f1
+    style H fill:#fbe9e7
+
+

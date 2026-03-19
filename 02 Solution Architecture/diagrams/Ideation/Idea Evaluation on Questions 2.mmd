@@ -1,0 +1,38 @@
+
+sequenceDiagram
+    autoNumber
+    actor EV as Evaluator
+    participant UI as  UI
+    participant APIG as API Gateway
+    participant BFF as Idea  BFF
+    participant IS as Idea Service
+    participant CS as Campaign Service
+    participant DBI as Idea DB
+    participant DBC as Campaign DB
+    EV->>UI: Enter score for <br/>each question
+    UI->>UI: Calculate row <br/>net score
+    UI->>UI: Calculate total <br/>weighted score
+
+    EV->>UI: Click Submit
+    UI->>APIG: POST /ideas/{ideaId}/submit
+    APIG->>BFF: Forward payload
+
+    BFF->>CS: Validate stage/question configuration
+    CS->>DBC: Read CAMPAIGN_STAGE <br/>and CAMPAIGN_STAGE_QUESTION
+    DBC-->>CS: Active questions, scales, weights
+    CS-->>BFF: Validation successful
+
+    BFF->>IS: Submit evaluation
+    IS->>DBI: Begin transaction
+    IS->>DBI: Insert Updte <br/> IDEA_EVALUATION header
+    IS->>DBI: Insert/Update <br/>IDEA_EVALUATION_DETAIL
+    IS->>IS: Calculate <br/>total_raw_score and total_weighted_score
+    IS->>DBI: Update IDEA_EVALUATION <br/>status = Submitted
+    IS->>DBI: Update IDEA current <br/>evaluation status
+
+    IS->>DBI: Commit transaction
+    DBI-->>IS: Submission successful
+    IS-->>BFF: Evaluation saved
+    BFF-->>APIG: Success response
+    APIG-->>UI: Show success confirmation
+    UI-->>EV: Evaluation completed

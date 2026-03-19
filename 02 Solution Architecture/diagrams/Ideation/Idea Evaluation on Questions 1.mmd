@@ -1,0 +1,33 @@
+sequenceDiagram
+    autoNumber
+    actor EV as Evaluator
+    participant UI as  UI
+    participant APIG as API Gateway
+    participant BFF as Idea  BFF
+    participant IS as Idea Service
+    participant CS as Campaign Service
+    participant DBI as Idea DB
+    participant DBC as Campaign DB
+
+    EV->>UI: Click Evaluation tab
+    UI->>APIG: GET <br/>/ideas/{ideaId}/stage-config
+    APIG->>BFF: Forward request
+
+    BFF->>IS: Get idea <br/>evaluation context
+    IS->>DBI: Read IDEA by idea_id
+    DBI-->>IS: campaign_id, <br/>current_stage_id
+
+    BFF->>CS: Get stage <br/>questionnaire configuration
+    CS->>DBC: Read CAMPAIGN_STAGE <br/>by campaign_id and campaign_stage_id
+    DBC-->>CS: stage_name, <br/>stage_weightage_pct
+
+    CS->>DBC: Read CAMPAIGN_STAGE_QUESTION <br/>by campaign_id and campaign_stage_id
+    DBC-->>CS: question_text, <br/>scale_min, scale_max, question_weightage_pct
+
+    BFF->>IS: Check draft or <br/>prior evaluation
+    IS->>DBI: Read IDEA_EVALUATION <br/>and IDEA_EVALUATION_DETAIL
+    DBI-->>IS: Existing draft <br/>scores or no prior record
+
+    BFF-->>APIG: Stage questionnaire <br/>and prior draft
+    APIG-->>UI: Load questions and weights
+

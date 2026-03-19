@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    actor User as Campaign Moderator
+    participant UI as UI
+    participant BFF as Campaign BFF
+    participant CS as Campaign Service
+    participant DB as PostgreSQL
+
+    User->>UI: Open Campaign Prioritization screen
+    UI->>BFF: GET /campaigns/{campaignId}/prioritization-config
+    BFF->>CS: GET /campaigns/{campaignId}/prioritization-config
+    CS->>DB: Read stages and questions
+    DB-->>CS: Existing config
+    CS-->>BFF: Prioritization config
+    BFF-->>UI: Prioritization config for screen load
+
+    User->>UI: Click Add Stage
+    User->>UI: Enter stage name and weightage
+    Note over UI: Stage added in local screen state only
+
+    User->>UI: Select stage
+    User->>UI: Click Add Question
+    User->>UI: Enter question, scale, weightage
+    Note over UI: Question added in local screen state only
+
+    User->>UI: Click Save / Submit
+    UI->>UI: Validate stage total weight = 100
+    UI->>UI: Validate question weights per stage
+    UI->>BFF: PUT /campaigns/{campaignId}/prioritization-config
+
+    BFF->>CS: Forward consolidated payload
+    CS->>CS: Validate business rules
+    CS->>DB: Begin transaction
+    CS->>DB: Upsert prioritization stages
+    CS->>DB: Upsert prioritization questions
+    CS->>DB: Delete removed stages/questions
+    CS->>DB: Commit transaction
+
+    DB-->>CS: Save successful
+    CS-->>BFF: Success response
+    BFF-->>UI: Configuration saved successfully
+    UI-->>User: Show success message

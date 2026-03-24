@@ -1,0 +1,29 @@
+flowchart TB
+    subgraph External_Systems[External Systems]
+        JIRA[JIRA]
+        ZD[Zendesk]
+        ISERV[Iserv]
+        GENAI[GenAI]
+    end
+
+    subgraph EPMS[EPMS - Central Component]
+        API[REST Integration Layer]
+        ORCH[Orchestration / Integration Service]
+        MB[(Message Broker)]
+        CORE[EPMS Business Services]
+    end
+
+    JIRA <-->|REST API Calls| API
+    JIRA <-->|Publish / Consume Events| MB
+
+    ZD <-->|REST API Calls| API
+    ZD <-->|Publish / Consume Events| MB
+
+    ISERV <-->|REST API Calls| API
+
+    GENAI <-->|REST API Calls| API
+    GENAI <-->|Async Processing / Events| MB
+
+    API --> ORCH
+    ORCH --> CORE
+    ORCH <--> MB

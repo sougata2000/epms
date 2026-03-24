@@ -1,0 +1,139 @@
+---
+config:
+  sequence: {}
+  theme: default
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+flowchart TB
+
+%% ---------------- USER LAYER ----------------
+subgraph UL["User Layer"]
+    U1["EPMS Web / Mobile UI"]
+    U2["Microsoft Teams Chat"]
+    U3["Admin Console"]
+end
+
+%% ---------------- ACCESS LAYER ----------------
+subgraph AL["Access & Security Layer"]
+    BFF["BFF / API Gateway"]
+    AUTH["OAuth2 / OIDC / RBAC / Zero Trust"]
+end
+
+%% ---------------- ORCHESTRATION ----------------
+subgraph ORCH["Orchestration Layer"]
+    AIO["AI Orchestrator<br/>(Prompt Mgmt, Model Routing, Guardrails)"]
+    JO["Journey Orchestrator<br/>(Business Workflows)"]
+end
+
+%% ---------------- AGENT LAYER ----------------
+subgraph AGENT["Persona Agent Layer"]
+    PMA["Project Manager Agent"]
+    EVA["Evaluator Agent"]
+    GOV["Governance Agent"]
+    REL["Release Manager Agent"]
+    DEM["Demand Agent"]
+end
+
+%% ---------------- AI PLATFORM ----------------
+subgraph AI["AI Platform Layer"]
+    LLM["LLM Models (Bedrock / OpenAI / Claude / Local)"]
+    RAG["RAG Layer (Vector DB + Knowledge Base)"]
+    GUARD["AI Guardrails<br/>(PII, Prompt Injection, Validation)"]
+    PROMPT["Prompt Registry"]
+end
+
+%% ---------------- TOOL LAYER ----------------
+subgraph TOOL["Tool / Integration Layer"]
+    APIs["EPMS APIs"]
+    EXT["External Systems (JIRA, SAP, Email, Teams)"]
+    DOC["Document Repositories"]
+end
+
+%% ---------------- BUSINESS LAYER ----------------
+subgraph BL["EPMS Business Microservices"]
+    PRJ["Project Service"]
+    PLN["Planning / WBS Service"]
+    GOVS["Governance Service"]
+    DEMS["Demand Service"]
+    IDE["Ideation Service"]
+    RELS["Release Service"]
+end
+
+%% ---------------- DATA LAYER ----------------
+subgraph DL["Data Layer"]
+    DB["Operational DB"]
+    VDB["Vector Database"]
+    FILE["Document Storage"]
+end
+
+%% ---------------- GOVERNANCE ----------------
+subgraph OBS["Observability & Governance"]
+    LOG["Logging / Monitoring"]
+    AUD["Audit / Trace"]
+    COST["Token & Cost Tracking"]
+    EVAL["Evaluation & Feedback"]
+end
+
+%% ---------------- FLOW ----------------
+U1 --> BFF
+U2 --> BFF
+U3 --> BFF
+
+BFF --> AUTH
+BFF --> AIO
+BFF --> JO
+
+%% AI FLOW
+AIO --> PMA
+AIO --> EVA
+AIO --> GOV
+AIO --> REL
+AIO --> DEM
+
+PMA --> LLM
+EVA --> LLM
+GOV --> LLM
+REL --> LLM
+DEM --> LLM
+
+PMA --> RAG
+EVA --> RAG
+GOV --> RAG
+REL --> RAG
+
+AIO --> GUARD
+AIO --> PROMPT
+
+%% TOOL ACCESS
+PMA --> APIs
+EVA --> APIs
+GOV --> APIs
+REL --> APIs
+DEM --> APIs
+
+PMA --> EXT
+REL --> DOC
+
+%% BUSINESS FLOW
+APIs --> PRJ
+APIs --> PLN
+APIs --> GOVS
+APIs --> DEMS
+APIs --> IDE
+APIs --> RELS
+
+PRJ --> DB
+PLN --> DB
+GOVS --> DB
+DEMS --> DB
+IDE --> DB
+RELS --> DB
+
+RAG --> VDB
+DOC --> FILE
+
+%% GOVERNANCE
+AIO --> LOG
+AIO --> AUD
+AIO --> COST
+AIO --> EVAL

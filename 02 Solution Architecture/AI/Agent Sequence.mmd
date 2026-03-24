@@ -1,0 +1,57 @@
+sequenceDiagram
+    actor U as User / Persona
+    participant UI as EPMS UI / Teams
+    participant BFF as BFF / API Layer
+    participant AIO as AI Orchestrator
+    participant PR as Persona Resolver
+    participant AG as Persona Agent Runtime
+    participant RAG as RAG / Knowledge Base
+    participant LLM as LLM / Bedrock Model
+    participant TOOL as Tool Layer / EPMS APIs
+    participant JO as Journey Orchestrator
+    participant AP as Human Approver
+    participant AUD as Audit / Monitoring
+
+    U->>UI: Ask complex <br/>question / <br/>request action
+    UI->>BFF: Send AI request
+    BFF->>AIO: Forward <br/>request with user context
+    AIO->>PR: Resolve <br/>persona, policy, tools
+    PR-->>AIO: Persona agent definition
+
+    AIO->>AG: Initialize agent runtime
+    AG->>RAG: Retrieve <br/>enterprise/project context
+    RAG-->>AG: Relevant <br/>knowledge/context
+
+    AG->>LLM: Plan steps/<br/>reason on task
+    LLM-->>AG: Plan + required tool calls
+
+    AG->>TOOL: Invoke EPMS<br/>APIs / external tools
+    TOOL-->>AG: Return live business data
+
+    AG->>LLM: Re-evaluate <br/>with tool results
+    LLM-->>AG: Analysis + <br/>recommendations + <br/>proposed action
+
+    alt Read-only or recommendation only
+        AG-->>AIO: Final response
+    else Non-critical execution
+        AG->>TOOL: Execute permitted action
+        TOOL-->>AG: Execution result
+        AG-->>AIO: Final response <br/>with action status
+    else Critical execution
+        AG-->>AIO: Draft action <br/>requiring approval
+        AIO->>JO: Start approval workflow
+        JO->>AP: Request approval
+        AP-->>JO: Approve / Reject
+        alt Approved
+            JO->>TOOL: Execute <br/>approved action
+            TOOL-->>JO: Execution result
+            JO-->>AIO: Approved and completed
+        else Rejected
+            JO-->>AIO: Rejected <br/>/ returned for review
+        end
+    end
+
+    AIO->>AUD: Log prompt, <br/>tools, decisions, actions
+    AIO-->>BFF: Return final outcome
+    BFF-->>UI: Response
+    UI-->>U: Show result

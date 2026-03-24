@@ -1,0 +1,62 @@
+---
+config:
+  sequence: {}
+  theme: default
+---
+%%{init: {'sequence': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+
+    actor User as Project Manager
+    participant UI as Project <br/> Execution UI
+    participant BFF as Web/Mobile BFF
+    %%participant API@{ "type": "boundary", "alias": "Public API" }
+    participant JORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+    %%participant JO  as Journey Orchestrator
+    participant IMS as Integration Adapter
+    participant JIRA as JIRA Platform
+    actor  JADMIN as JIRA Administrator
+    participant MBUS@{ "type": "queue", "alias": "Message Bus"}
+    %%participant MB as Message Broker
+    participant WBS as WBS Microservice
+   participant DB@{ "type": "database", "alias": "EPMS WBS schema"}
+   participant ReadReplica@{ "type": "database", "alias": "Read Model"}
+     participant DB  as EPMS WBS schema
+    participant ReadReplica   as Read Model
+    participant NS as Notification<br/>Service
+
+    User->>UI: Click "Create <br/>JIRA Space"
+    UI->>BFF: HTTPS REST<br/>API POST REQUEST
+    BFF->>JORCH: Internal service call <br/>JSON request with <br/>project metadata
+    activate JORCH
+    JORCH->>IMS: HTTPS REST API<br/>JSON payload for <br/>JIRA space creation
+    IMS->>JIRA: Authenticated <br/>REST API with JSON<br/>Create project <br/>space request
+    JORCH->>MBus: Publish event on <br/>message bus<br/>Topic: JIRA_SPACE_CREATION_REQUESTED
+    MBus-->>NS: Consume event<br/>JIRA space <br/>creation requested
+    NS-->>JADMIN: Notification of <br/>JIRA space creation request
+    JIRA-->>JADMIN: Space creation <br/>notification / approval
+    JADMIN->>JIRA: Approve space creation
+    JIRA-->>IMS: Response<br/>JSON with jira br/>ProjectId
+    IMS-->>JORCH: Space created successfully</br/>:JSON
+    JORCH-->>BFF: Workflow <br/>completion response
+    deactivate JORCH
+    BFF-->>UI: UI response<br/>JIRA space <br/>linked to EPMS
+
+    Note over JIRA,IMS: Work items are created in JIRA during execution phase
+
+    JIRA-->>IMS: Webhook trigger<br/>Issue created / updated <br/>/ deleted payload in JSON
+    IMS->>IMS: Validate webhook <br/>signature, schema <br/>and deduplicate event
+    IMS->>MBUS: Publish event on <br/>message bus<br/>Topic: WBS_SYNC_EVENT
+    MBus-->>WBS: Consume event<br/>:JSON
+    WBS->>WBS: Transform issue type<br/>Epic->Milestone, Story->Activity, Task ->Task
+    WBS->>DB: Upsert WBS hierarchy 
+    DB->>ReadReplica: Read synchronized<br/>WBS data
+
+    alt Webhook missed or retry required
+        WBS->>IMS: REST API call<br/>Request incremental <br/>reconciliation.
+        IMS->>JIRA: Authenticated REST API<br/>GET changed issues <br/>since last sync in JSON
+        JIRA-->>IMS: JSON response with <br/>changed <br/>issues batch
+        IMS->>MB: Publish reconciliation <br/>events on message bus
+        MBus-->>WBS: Consume <br/>reconciliation <br/>events
+        WBS->>DB: Upsert missing <br/>corrected <br/>WBS records
+    end

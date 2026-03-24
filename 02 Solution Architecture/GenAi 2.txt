@@ -1,28 +1,8 @@
-Ideation
-Project Management (Demand, Initiation, Planning, Execution)
-Change Request management
-Resource and Timesheet management
-Risk management
-Quality management
-Vendor management
-Startup Innovation
-Project closure
-
 There should be agent for every persona which can analyze, summarize, and recommend.
 There should be agents should have evaluator persona as well, which will provide semantic analysis-based scoring along with explainability.
 Agents should be accessible in organization hierarchy and have set definition of the tasks, it can perform. It can be accessible on Teams chat and based on chat, it can understand, inference, answer and execute as well, provide responses based on agentic flow.
 Responsible human stakeholder should only be in loop where critical decisions needed.
 
-Key Discussion Points
-Ideation: Allow duplicates, similarity check (ideas + campaigns), templates & fewer fields
-AI Evaluation: Scoring, gap detection, explainability, DAR/CMA checks
-Agentic System: Replace personas with AI agents, runtime insights, goal‑coverage scoring
-Demand: New vs Enhancement vs Minor Demand classification; idea → demand mapping
-Project Mgmt: GenAI for KPIs, velocity insights; text-light structured inputs
- 
-Key Action Points
-Area
-Key Actions
 Ideation
 Templates by category; duplicate allowed; similarity checks; Idea/Suggestion/Contribution split; file‑upload → auto‑populate
 GenAI
@@ -33,14 +13,33 @@ Demand
 Classify New/Enh/Minor; short‑form for small CRs; idea → demand linking; mandatory minimum fields; avoid iServe‑style overhead
 Governance
 Define idea qualification; ensure not text‑heavy; structured templates; feasibility prompts; AI-backed completeness checks
-
-My Workspace (Today’s To-Do for me and for my team, etc.)
-Auto spell check, AI suggested sentence completion
-Nudge engine (Project at Risk, your approval is pending, etc.)
-PPT Template/Business case template through Agentic AI (AI fills in info automatically for the specific need, e.g Project report)
-Copilot/other LLM integration
-
 AI support for Release manager – Reads the submitted artefacts and shares summary
 AI Acts as Checker wherever there is need for Maker-Checker-Approver
 Ai generates a one pager summary at every stage gate completion / Project completion (Understands what DONE looks like and generates report in accordance)
+
+
+080-47188266
+
+080-47113344
+
+
+project id / project name
+issue id / issue id
+issue type: epic, story, task, bug, sub-task
+summary / description
+status / workflow state
+priority / severity
+assignee / reporter
+labels / components
+sprint / board context where relevant
+story points / original estimate / remaining estimate
+created / updated / resolved dates
+comments count or latest comment metadata
+linked issues / blockers / dependencies
+version / release / fixVersion
+custom fields mapped to EPMS fields
+transition history if you need cycle-time analytics
+
+
+ 
  

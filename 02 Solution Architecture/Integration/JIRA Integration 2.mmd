@@ -1,0 +1,49 @@
+---
+config:
+  sequence: {}
+  theme: default
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+flowchart LR
+    subgraph EPMS["EPMS - MZ Zone"]
+        UI[EPMS UI / BFF]
+        JO[Journey Orchestrator]
+        BMS[Business Microservices]
+        IMS[Integration Adapter for JIRA<br/>EKS Deployment]
+        MB[Message Broker]
+        SYNC[WBS Sync Consumer]
+        WBSDB[(EPMS WBS DB)]
+        READ[Reporting / Gantt Read Model]
+        MAP[(Type Mapping / Source Link Table)]
+        DLQ[Dead Letter Queue]
+        REC[Reconciliation Scheduler]
+    end
+
+    subgraph JIRA_ZONE["JIRA"]
+        JIRA[JIRA Project / Space]
+        WH[JIRA Webhooks]
+        API[JIRA REST APIs]
+        ADM[JIRA Administrator]
+    end
+
+    UI -->|Create JIRA space| JO
+    JO -->|Invoke integration| IMS
+    IMS -->|Create project/space API| API
+    API --> ADM
+    API -->|Space created response| IMS
+    IMS -->|Link JIRA project key| BMS
+
+    JIRA -->|Issue create/update/delete| WH
+    WH -->|Webhook callback| IMS
+    IMS -->|Validate / normalize / dedupe| MB
+    MB --> SYNC
+    SYNC --> MAP
+    SYNC -->|Upsert WBS hierarchy| WBSDB
+    SYNC -->|Refresh reporting view| READ
+
+    REC -->|Updated since cursor| IMS
+    IMS -->|Incremental pull / JQL search| API
+    API -->|Changed issues batch| IMS
+    IMS -->|Bulk sync events| MB
+
+    MB --> DLQ

@@ -1,0 +1,50 @@
+flowchart LR
+
+%% External Systems
+EXT[JIRA / Jenkins / Zendesk / SAP / iServ]
+
+%% Edge Layer
+APIG[API Gateway]
+
+%% Integration Layer
+INT[Integration Microservices]
+EVENT[Event Messaging Platform]
+DLQ[Dead Letter Queue]
+
+%% Core Services
+BIZ[Biz Microservices]
+ORCH[Journey Orchestrator]
+RULE[Rule Engine]
+
+%% Data / Downstream
+SEARCH[Search Service]
+DATALAKE[Enterprise Data Lake]
+
+%% -------- Synchronous Flow --------
+EXT -- REST/HTTPS API Call (JSON, JWT) --> APIG
+APIG -- Authenticated Request (JWT) --> INT
+INT -- Transformed Request (Canonical Model) --> BIZ
+
+%% -------- Rule Evaluation --------
+BIZ -- Evaluate Rules (Request Payload) --> RULE
+RULE -- Decision Response (JSON) --> BIZ
+
+%% -------- Workflow Trigger --------
+BIZ -- Start Workflow Event --> ORCH
+ORCH -- Workflow Command (JSON) --> BIZ
+
+%% -------- Asynchronous Event Flow --------
+BIZ -- Publish Event: ProjectCreated --> EVENT
+EVENT -- Consume Event: ProjectCreated --> INT
+INT -- Push Update (REST/Adapter Call) --> EXT
+
+%% -------- Failure Handling --------
+EVENT -- Failed Event --> DLQ
+DLQ -- Retry / Manual Intervention --> INT
+
+%% -------- Search Indexing --------
+BIZ -- Publish Event: IndexData --> EVENT
+EVENT -- Consume --> SEARCH
+
+%% -------- Analytics --------
+EVENT -- Stream Events --> DATALAKE

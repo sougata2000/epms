@@ -1,0 +1,72 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+flowchart LR
+    U[User / Browser / Mobile]
+    MFA[MFA Verification<br/>Authenticator / OTP / Push]
+    IDP[Identity Provider<br/>OIDC / OAuth2 / SSO]
+    CDN[CDN<br/>HTTPS + TLS 1.2/1.3]
+    DDoS[DDoS Protection<br/>AWS Shield / Edge Protection]
+    WAF[WAF<br/>L7 Filtering]
+    FW[Firewall / Security Policy Layer<br/>IP Filtering / Allow-Deny Rules]
+    IPS[IDS / IPS<br/>Threat Detection / Intrusion Prevention]
+    LB[Reverse Proxy / Load Balancer<br/>HTTPS + TLS]
+    GW[API Gateway<br/>HTTPS + TLS<br/>OAuth2 / JWT Validation]
+    BFF[BFF Layer<br/>HTTPS / gRPC + TLS<br/>JWT Validation]
+    ORCH[Journey Orchestrator<br/>REST / gRPC + TLS / mTLS]
+    MS[Biz Microservices<br/>REST / gRPC + mTLS<br/>RBAC + ABAC]
+    CACHE[Redis Cache<br/>TLS-enabled Redis Protocol]
+    DB[(RDS / NoSQL / Vector DB<br/>TLS + Encryption at Rest)]
+    DOC[S3 / Document Store<br/>HTTPS + SSE-KMS]
+    EVT[Event Platform<br/>Kafka / AMQP + TLS / mTLS]
+    INT[Integration Layer<br/>HTTPS + OAuth2 / API Keys]
+    AI[AI Orchestrator<br/>HTTPS + TLS + Policy Controls]
+    GEN[GenAI / LLM<br/>HTTPS + TLS]
+    MON[Monitoring / SIEM / Security Ops<br/>TLS]
+    SEC[Secrets / KMS / IAM<br/>Key & Credential Control]
+
+    U -->|Login Request<br/>HTTPS + TLS| IDP
+    IDP -->|MFA Challenge| MFA
+    MFA -->|MFA Success| IDP
+    IDP -->|JWT Token Issued| U
+
+    U -->|HTTPS + TLS| CDN
+    CDN -->|HTTPS + TLS| DDoS
+    DDoS -->|Scrubbed Traffic| WAF
+    WAF -->|Filtered Traffic| FW
+    FW -->|Allowed Traffic| IPS
+    IPS -->|Inspected Traffic| LB
+    LB -->|HTTPS + TLS| GW
+
+    GW -->|HTTPS + TLS + JWT| BFF
+    BFF -->|HTTPS / gRPC + TLS + JWT| ORCH
+    BFF -->|HTTPS / gRPC + TLS + JWT| MS
+    BFF -->|TLS Redis| CACHE
+
+    ORCH -->|mTLS + Service Auth| MS
+    MS -->|TLS + DB Auth| DB
+    MS -->|HTTPS + IAM / Signed URL| DOC
+    MS -->|Kafka / AMQP + TLS / mTLS| EVT
+    MS -->|HTTPS + TLS + OAuth2 / API Key| INT
+
+    BFF -->|HTTPS + TLS + JWT| AI
+    AI -->|HTTPS + TLS| GEN
+    AI -->|TLS + Auth| DB
+
+    SEC --- GW
+    SEC --- BFF
+    SEC --- MS
+    SEC --- DB
+    SEC --- DOC
+    SEC --- AI
+
+    GW -->|TLS Logs| MON
+    BFF -->|TLS Logs| MON
+    ORCH -->|TLS Logs| MON
+    MS -->|TLS Logs| MON
+    IPS -->|Security Events| MON
+    WAF -->|Threat Logs| MON
+    FW -->|Access Logs| MON

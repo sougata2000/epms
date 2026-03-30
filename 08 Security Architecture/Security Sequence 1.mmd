@@ -1,0 +1,17 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+flowchart LR
+    U[User / Browser / Mobile]
+    Ex[FW,DDoD,WAF,IPS]
+    IDP[Identity Provider<br/>OIDC / OAuth2]
+    CDN[CDN]  
+    GW[API Gateway]
+    U -->| HTTPS| Ex[FW,DDoD,WAF,IPS]
+    Ex-->| HTTPS| CDN
+    CDN-->|HTTPS|GW
+    GW-->| HTTPS| IDP
+    IDP -->|MFA,JWT Issued| U

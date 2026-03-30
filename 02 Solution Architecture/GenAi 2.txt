@@ -42,4 +42,7 @@ transition history if you need cycle-time analytics
 
 
  
- 
+1st sem - 27400
+2nd 21900
+3rd 26000
+4 th 21500 

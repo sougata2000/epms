@@ -1,0 +1,57 @@
+flowchart LR
+   
+    U[Users / Personas<br/>Business Partner<br/>BP Manager<br/>Governance Head<br/>CoE Head<br/>Business User] --> UI[EPMS UI<br/>Web / Mobile / Teams]
+
+    UI --> APIGW([API Gateway])
+    APIGW --> BFF[Initiation BFF / Experience APIs]
+
+    BFF --> JO[Journey Orchestrators<br/>Program Journey Orchestrator<br/>Project Journey Orchestrator]
+    BFF --> AIO[AI Orchestrator]
+
+    JO --> PS[Program Service]
+    JO --> PJS[Project Service]
+    JO --> DS[Demand Service]
+
+    PS --> DB[(PostgreSQL)]
+    PJS --> DB
+    DS --> DB
+
+    PS --> CACHE[(Redis Cache)]
+    PJS --> CACHE
+    DS --> CACHE
+
+    PS --> EVT[Event Bus / Broker]
+    PJS --> EVT
+    DS --> EVT
+
+    AIO --> PA[Persona Agents]
+    AIO --> TA[Task / Workflow Agents]
+    AIO --> GA[Governance / Policy Agent]
+
+    PA --> TG[Tool Gateway / Action Adapters]
+    TA --> TG
+    GA --> TG
+
+    TG --> BFF
+    TG --> JO
+    TG --> PS
+    TG --> PJS
+    TG --> DS
+
+    AIO --> RAG[RAG / Retrieval Layer]
+    RAG --> VDB[(Vector DB)]
+    RAG --> KBASE[Enterprise Knowledge<br/>Policies / Project Docs / Templates / Past Decisions]
+
+    AIO --> LLMG[LLM Gateway / Model Router]
+    LLMG --> LLM1[General LLM]
+    LLMG --> LLM2[Reasoning LLM]
+    LLMG --> LLM3[Lightweight LLM]
+
+    TG --> EXT[External Adapters]
+    EXT --> JIRA[JIRA]
+    EXT --> ZD[Zendesk]
+    EXT --> SF[SuccessFactors]
+    EXT --> DOC[Document Mgmt / Email / SMS]
+
+    AIO --> SAFE[Guardrails / Audit / Prompt Security / PII Controls]
+    SAFE --> AUDIT[(AI Audit Logs)]

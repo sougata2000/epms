@@ -1,0 +1,50 @@
+---
+config:
+  sequence: {}
+  theme: default
+---
+sequenceDiagram
+    autonumber
+    actor Admin as EPMP Admin
+    actor User as EPMP User 
+    participant EPMP as EPMP <br/>Integration Service
+    participant Vault as Secrets Manager/KMS
+    participant IdP as Entra ID
+    participant SFAuth as SuccessFactors <br/>OAuth Token Endpoint
+    participant SFOD as SuccessFactors <br/>OData API
+    participant SFSOAP as SuccessFactors <br/>CompoundEmployee API
+    participant DB as EPMP User Tables
+    participant CH as Cache 
+    participant Audit as Audit<br/>/Sync Log
+
+    Note over Admin,SFAuth: One-time client<br/>registration and key setup
+    Admin->>EPMP: Configure<br/>SuccessFactors connection
+    EPMP->>Vault: Store client ID,<br/>private key/<br/>certificate refs
+    Note over EPMP,SFAuth: SuccessFactors OAuth client registration uses an X.509 certificate and returns an API key/client id
+
+    Note over User,SFOD: Runtime <br/>on-demand lookup flow
+    User->>EPMP: Open approved <br/>staffing screen
+    EPMP->>Vault: Get client<br/>credentials/cert reference
+    EPMP->>IdP: Request<br/>SAML assertion for technical user
+    IdP-->>EPMP: Signed<br/>SAML assertion
+    EPMP->>SFAuth: Request<br/> OAuth token (client_id + SAML assertion)
+    SFAuth-->>EPMP: Access token
+    EPMP->>SFOD: GET User / EmpJob<br/> / FO* entities with $select, $filter, $expand
+    SFOD-->>EPMP: OData <br/>response Employee data
+    EPMP->>DB: Insert/Update <br/>user data
+    EPMP->>DB: Cache upsert<br/>reference data
+    EPMP->>Audit: Log lookup<br/>and response status
+    EPMP-->>User: Validated user<br/>/ data
+
+    Note over EPMP,SFSOAP: Scheduled master-data sync/reconciliation
+    EPMP->>Vault: Get SOAP API <br/>credentials / session config
+    EPMP->>SFSOAP: Login
+    SFSOAP-->>EPMP: Session cookie
+    EPMP->>SFSOAP: query CompoundEmployee (full, snapshot, or delta)
+    SFSOAP-->>EPMP: Hierarchical employee master data XML
+    EPMP->>DB: Normalize and <br/>upsert employee/org/manager reference tables
+    EPMP->>Audit: Record sync <br/>checkpoint and reconciliation status
+    EPMP->>SFSOAP: Logout
+    EPMS->>SF: CompoundEmployee delta sync
+    SF-->>EPMS: Employee master data XML
+    EPMS->>DB: Upsert master/reference tables

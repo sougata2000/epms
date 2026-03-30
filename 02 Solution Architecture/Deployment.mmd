@@ -1,0 +1,25 @@
+architecture-beta
+
+%% ========== USERS ==========
+    group users(logos:user)[Users]
+    service pm(logos:user)[Program Manager]
+    service projm(logos:user)[Project Manager]
+    service eval(logos:user)[Evaluator]
+    service coe(logos:user)[CoE Head]
+    service ext(logos:user)[External Users]
+
+%% ========== CHANNEL ==========
+    group channel(logos:aws-amplify)[User Engagement]
+    service web(logos:aws-amplify)[Web Portal]
+    service mobile(logos:aws-amplify)[Mobile App]
+
+%% Users → Channel
+pm:R --> L:web
+projm:R --> L:web
+eval:R --> L:web
+coe:R --> L:web
+ext:R --> L:web
+
+pm:B --> T:mobile
+projm:B --> T:mobile
+

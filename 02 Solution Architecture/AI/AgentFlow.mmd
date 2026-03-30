@@ -1,0 +1,44 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    participant User as User (Frontend)
+    participant API as Spring Boot REST API
+    participant Mem as Memory Layer
+    participant Jira as Jira Adapter
+    participant KB as Vector DB / Knowledge Base
+    participant Risk as Risk Agent
+    participant Cost as Cost Agent
+    participant Sched as Scheduling Agent
+    participant Bedrock as Amazon Bedrock (LLM)
+
+    User->>API: Submit project data 
+    API->>Mem: Store project context
+    API->>Jira: Fetch JIRA issues
+    Jira-->>API: Return JIRA issues
+    API->>KB: Query embeddings for similar tasks
+    KB-->>API: Return knowledge base results
+
+    par Parallel Agent Execution
+        API->>Risk: Send tasks + JIRA + KB context
+        Risk->>Bedrock: Prompt for risk analysis
+        Bedrock-->>Risk: Risk results
+        Risk-->>API: Return risks
+
+        API->>Cost: Send tasks + KB context
+        Cost->>Bedrock: Prompt for cost optimization
+        Bedrock-->>Cost: Cost results
+        Cost-->>API: Return cost suggestions
+
+        API->>Sched: Send tasks + JIRA context
+        Sched->>Bedrock: Prompt for scheduling
+        Bedrock-->>Sched: Schedule results
+        Sched-->>API: Return schedule
+    end
+
+    API->>API: Aggregate agent outputs
+    API-->>User: Unified AI recommendations (JSON)

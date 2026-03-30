@@ -1,0 +1,75 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+flowchart LR
+    U[Users / Personas] --> UI[EPMP UI / Web / Mobile]
+    UI --> APIGW[API Gateway]
+    APIGW --> BFF[BFF]
+    BFF --> AIO[AI Orchestrator]
+    %%BFF --> JO[Journey Orchestrators]
+    JO --> PS[Program Service]
+    JO --> PJS[Project Service]
+    JO --> WS[WBS Service]
+    PS --> DB[(PostgreSQL)]
+    PJS --> DB
+    WS --> DB
+    AIO --> AGENTS[Persona / Task Agents]
+    AGENTS --> RAG[Retrieval Layer]
+    RAG --> VDB[(Vector DB)]
+    RAG --> KBASE[Policies / Docs / Templates / History] 
+    VDB --> RAG
+    KBASE --> RAG
+    RAG --> AGENTS
+    AGENTS --> LLMG[LLM Gateway / Model Router]
+    LLMG --> LLM[LLM Models]
+    LLM --> LLMG
+    LLMG --> AGENTS
+    %%AGENTS --> TG[Tool Gateway]
+
+    TG --> PS
+    TG --> PJS
+    TG --> WS
+    TG --> EXT[External Systems]
+
+    PS --> TG
+    PJS --> TG
+    WS --> TG
+    
+
+   
+    TG --> AGENTS
+
+    AIO --> SAFE[Guardrails / Policy / Audit]
+    SAFE --> AIO
+
+    WS--> QRY[Query APIs / Read Model]
+    QRY --> RD[(Read Stores/Search/Workflow Read <br/>PostgreSQL / ElasticSearch / Redis)]
+    RD --> QRY
+    QRY --> TG
+
+    AGENTS --> DECIDE{Action needed?}
+    DECIDE -- No --> TG[Tool Gateway]
+    DECIDE -- Yes --> CMD[Command API / Journey Entry]
+    CMD --> JO[Journey Orchestrator]
+   
+    %%TG --> EXT[Notifications / Integrations]
+    AGENTS --> AIO
+    AIO --> BFF
+    BFF --> UI
+    UI --> U
+
+    AIO --> AUDIT[(AI Audit Log)]
+ 
+linkStyle 37 stroke:red ,stroke-width:2px
+linkStyle 38 stroke:red ,stroke-width:2px
+linkStyle 4 stroke:red ,stroke-width:2px
+linkStyle 5 stroke:red ,stroke-width:2px
+linkStyle 6 stroke:red ,stroke-width:2px
+linkStyle 7 stroke:red ,stroke-width:2px
+linkStyle 8 stroke:red ,stroke-width:2px
+linkStyle 9 stroke:red ,stroke-width:2px
+    %%linkStyle 1 stroke:red
+    %%linkStyle 2 stroke7red

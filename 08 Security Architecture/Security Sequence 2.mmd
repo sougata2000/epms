@@ -1,0 +1,46 @@
+flowchart TB
+    GW[API Gateway]
+
+    BFF[BFF Layer<br/>Journey-Level]
+
+    ORCH[Journey Orchestrator<br/>Workflow Control]
+
+    MS[Business Microservices]
+
+    CACHE[Redis Cache<br/>TLS]
+    DB[(RDS / NoSQL / Vector DB)]
+    DOC[S3 / Document Store]
+    EVT[Event Platform]
+
+    AI[AI Orchestrator]
+    GEN[GenAI / LLM]
+
+    INT[Integration Layer<br/>External Systems]
+
+    MON[Monitoring / SIEM]
+    SEC[Secrets / KMS / IAM]
+
+    GW -->|JWT + Rate Limit| BFF
+
+    BFF --> |JWT Validation|ORCH
+    BFF --> |Workflow Control|MS
+    BFF --> |TLS|CACHE
+
+    ORCH --> |Service-Level JWT|MS
+
+    MS --> |Secure DB protocol|DB
+    MS --> |Service-Level JWT + RBAC + ABAC|DOC
+    MS --> |Kafka / AMQP + TLS/mTLS|EVT
+    MS --> |OAuth2 / API Keys|INT
+
+    BFF --> |JWT Validation|AI
+    AI --> |Policy + JWT|GEN
+    AI --> |Secure DB protocol|DB
+
+    SEC --- |HTTPS|BFF
+    SEC --- |HTTPS|MS
+    SEC --- |HTTPS|DB
+
+    MS --> MON
+    ORCH --> MON
+    AI --> MON

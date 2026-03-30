@@ -1,0 +1,51 @@
+---
+config:
+  sequence: {}
+  theme: default
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor User as EPMS User
+    participant UI as EPMS UI
+    participant BFF as EPMS BFF/API Layer
+    participant EPMS as EPMS Domain Service
+    participant EIS as EPMP <br/>Integration Service
+    participant Vault as Secrets Manager / KMS
+    participant ZAuth as Zendesk <br/>OAuth/API Token Auth
+    participant ZD as Zendesk API
+    participant WH as Zendesk Webhook
+    participant MB as Message Broker
+    participant DB as EPMP DB
+    participant Audit as Audit / Sync Log
+
+    Note over EIS,Vault: One-time integration setup
+    EIS->>Vault: Store OAuth client <br/>/ API token / webhook secret
+    EIS->>Audit: Record connection setup
+
+    Note over User,ZD: Ticket <br/>creation from EPMP to Zendesk
+    User->>UI: Raise support<br/> issue / escalation
+    UI->>BFF: Submit support request
+    BFF->>EPMS: Create <br/>EPMP support case
+    EPMS->>EIS: Create <br/>Support ticket
+    EIS->>Vault: Fetch OAuth <br/>token / API token
+    EIS->>ZAuth: Obtain / <br/>validate access token
+    ZAuth-->>EIS: Access token <br/>/ auth success
+    EIS->>ZD: POST /tickets <br/>with mapped EPMP fields
+    ZD-->>EIS: Zendesk ticket id / status / url
+    EIS->>DB: Insert EPMP case ticket 
+    EIS->>Audit: Log outbound ticket creation
+    EIS-->>EPMS: Ticket created successfully    
+    EPMS-->>BFF: Success response
+    BFF-->>UI: Show linked Zendesk ticket reference
+
+    Note over ZD,EPMS: Near-real-time inbound update via webhook
+    ZD->>WH: Ticket updated <br/>/commented / status changed
+    WH->>EIS: Deliver webhook payload
+    EIS->>EIS: Validate webhook signature / source
+    EIS->>MB: Publish canonical support event
+    MB->>EPMS: Consume support update event
+    EPMS->>DB: Update support snapshot / status projection
+    EPMS->>Audit: Log inbound update processing
+
+   

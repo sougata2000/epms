@@ -1,0 +1,51 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor COE as CoE Head
+
+participant UI as Schedule Approval UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant ADP as Service Adapter
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+COE->>UI: Open Schedule Approval
+UI->>BFF: Load proposal
+BFF->>ORCH: Get proposed schedule
+ORCH->>PPS: Fetch proposal details
+PPS->>DB: Query schedule_approval and planning data
+DB-->>PPS: Proposal
+PPS-->>ORCH: Proposal response
+ORCH-->>BFF: Response
+BFF-->>UI: Show review screen
+
+alt Approve
+    COE->>UI: Approve schedule
+    UI->>BFF: Submit approval
+    BFF->>ORCH: Start approval flow
+    ORCH->>PPS: Approve schedule and freeze baseline
+    PPS->>DB: Update schedule_approval = Approved
+    PPS->>DB: Update project_planning status = Resource Tagging Pending
+    PPS->>DB: Set baseline_frozen_flag = true
+    ORCH->>ADP: Send notifications
+    ORCH->>KAFKA: Publish ScheduleApproved Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show approved state
+else Send Back
+    COE->>UI: Send back schedule
+    UI->>BFF: Submit send back
+    BFF->>ORCH: Start send back flow
+    ORCH->>PPS: Update schedule status = Sent Back
+    PPS->>DB: Update schedule_approval
+    PPS->>DB: Insert status history
+    ORCH->>KAFKA: Publish ScheduleSentBack Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show sent back state
+end

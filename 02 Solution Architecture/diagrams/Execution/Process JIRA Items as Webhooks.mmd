@@ -1,0 +1,32 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor JIRA_SYS as JIRA System
+
+participant ADP as Service Adapter
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant JIRA as JIRA Sync Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+JIRA_SYS->>ADP: Webhook (Issue Create/Update) [JSON]
+ADP->>ORCH: Forward webhook payload
+ORCH->>JIRA: Process webhook event
+
+JIRA->>PRIMARYDB: Insert/Update jira_wbs_sync
+PRIMARYDB-->>JIRA: Write success
+
+JIRA-->>ORCH: Sync success
+
+Note over PRIMARYDB,READDB: Asynchronous DB replication
+PRIMARYDB-->>READDB: Replicate latest JIRA WBS data
+
+ORCH->>KAFKA: Publish JiraWBSSynced Event
+
+Note over READDB: Subsequent UI reads reflect updated data

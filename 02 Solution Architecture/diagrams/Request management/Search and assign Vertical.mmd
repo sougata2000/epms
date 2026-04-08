@@ -1,0 +1,30 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor Manager as Demand Manager
+    participant UI as Request List UI
+    participant BFF as Request BFF
+    participant RS as Request Service
+    participant AS as Request Assignment Service
+    participant DB@{ "type": "database", "alias": "EPMS Request schema"}
+
+    Manager->>UI: Search requests
+    UI->>BFF: Filter / search
+    BFF->>RS: Search requests
+    RS->>DB: Query requests
+    DB-->>RS: Results
+    RS-->>BFF: Request list
+    BFF-->>UI: Show list
+
+    Manager->>UI: Assign vertical
+    UI->>BFF: Submit vertical
+    BFF->>AS: Assign vertical
+    AS->>DB: Insert request_assignment
+    AS->>DB: Update request current_vertical/status
+    AS-->>BFF: Assignment success
+    BFF-->>UI: Refresh list

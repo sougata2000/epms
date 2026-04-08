@@ -1,0 +1,39 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Governance Edit UI
+participant BFF as Governance BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant GOV as Governance Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ADMIN->>UI: Open active archetype for edit
+UI->>BFF: Create editable revision
+BFF->>ORCH: Start archetype revision flow
+ORCH->>GOV: Create new version from active archetype
+GOV->>DB: Insert new governance_archetype version
+GOV->>DB: Copy WBS / QA / access configuration
+GOV->>DB: Insert status history
+GOV-->>ORCH: Revision created
+ORCH-->>BFF: Success
+BFF-->>UI: Open updated draft version
+
+ADMIN->>UI: Modify details / structure / rules and Submit
+UI->>BFF: Submit revised archetype
+BFF->>ORCH: Start revised submit flow
+ORCH->>GOV: Activate new version for future projects
+GOV->>DB: Mark new version active
+GOV->>DB: Retain old version for existing linked projects
+GOV->>DB: Insert status history
+GOV-->>ORCH: Activation success
+ORCH->>KAFKA: Publish ArchetypeVersionUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated active version

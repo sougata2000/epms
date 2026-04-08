@@ -1,0 +1,33 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Add Action UI
+participant BFF as Action Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant ACT as Action Management Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Enter action details and click Submit
+UI->>BFF: Submit new action
+BFF->>ORCH: Start action creation flow
+ORCH->>ACT: Validate linked WBS and owner
+ACT->>READDB: Validate project_wbs_id and owner reference
+READDB-->>ACT: Validation success
+ACT->>PRIMARYDB: Insert project_action
+ACT->>PRIMARYDB: Insert project_action_status_history(Open)
+PRIMARYDB-->>ACT: Save success
+ACT-->>ORCH: Action created
+ORCH->>ADP: Send assignee notification
+ORCH->>KAFKA: Publish ActionCreated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show action created state

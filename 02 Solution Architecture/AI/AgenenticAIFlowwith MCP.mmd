@@ -1,0 +1,87 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor U as User / Persona
+    participant UI as EPMS UI
+    participant BFF as BFF / API Layer
+    participant AUTH as Auth Service (JWT)
+    participant CACHE as Redis Cache
+    participant AIO as AI Orchestrator
+    participant PR as Prompt Registry (DB)
+    participant PERR as Persona Resolver
+    participant AG as Agent Runtime
+    participant MCP as MCP Tool Layer
+    participant PERM as Gardrail
+    participant RAG as Vector DB (pgvector)
+    participant TOOL as EPMP APIs / JIRA
+    participant LLM1 as Primary LLM (Bedrock)
+    participant AUD as Audit Logging
+
+    %% USER REQUEST
+    U->>UI: Ask query / request action
+    UI->>BFF: Send request
+
+    %% AUTH & JWT
+    BFF->>AUTH: Validate JWT
+    AUTH-->>BFF: Token valid + user roles
+
+    %% CACHE CHECK
+    BFF->>CACHE: Check cached response
+    alt Cache hit
+        CACHE-->>BFF: Return cached response
+        BFF-->>UI: Response
+        UI-->>U: Show result
+    else Cache miss
+        BFF->>AIO: Forward request + JWT + context
+    end
+
+    %% PROMPT + PERSONA
+    AIO->>PR: Fetch prompt template
+    PR-->>AIO: Prompt + schema
+    AIO->>PERR: Resolve persona agent
+   PERR-->>AIO: Agent config (tools, policies)
+
+    %% AGENT START
+    AIO->>AG: Initialize agent
+
+    %% RAG CONTEXT
+    AG->>RAG: Semantic search
+    RAG-->>AG: Context
+
+    %% TOOL ACCESS WITH MCP
+    AG->>MCP: Request tool execution
+    MCP->>PERM: Validate tool permissions (RBAC)
+    PERM-->>MCP: Approve / deny
+
+    alt Allowed
+        MCP->>TOOL: Call EPMS APIs / JIRA
+        TOOL-->>MCP: Return data
+        MCP-->>AG: Tool result
+    else Denied
+        MCP-->>AG: Access denied
+    end
+
+    %% LLM CALL WITH RETRY
+    AG->>LLM1: Invoke primary model (Bedrock)
+    alt Success
+        LLM1-->>AG: Response
+   
+    end
+
+
+    %% CACHE STORE
+    AIO->>CACHE: Store response
+
+    %% AUDIT LOGGING
+    AIO->>AUD: Log
+    Note right of AUD: Prompt, response, tools used,<br/>user, decision, cost
+
+    %% RESPONSE
+    AIO-->>BFF: Final response
+    BFF-->>UI: Response
+    UI-->>U: Show result

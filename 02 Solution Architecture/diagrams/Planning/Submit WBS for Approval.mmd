@@ -1,0 +1,28 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as WBS Creation UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias":"Message Bus"}
+
+PM->>UI: Click Submit for Approval
+UI->>BFF: Submit WBS
+BFF->>ORCH: Start WBS submission flow
+ORCH->>PPS: Validate completeness and submit
+PPS->>DB: Update project_wbs status
+PPS->>DB: Insert project_wbs_approval
+PPS->>DB: Insert project_planning_status_history
+PPS-->>ORCH: Submission success
+ORCH->>KAFKA: Publish WBSSubmittedForApproval Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show submitted state

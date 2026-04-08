@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CR as Change Request Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Enter CR details and click Next
+UI->>BFF: Submit CR draft
+BFF->>ORCH: Start draft flow
+ORCH->>CR: Create draft CR
+CR->>PRIMARYDB: Insert CR draft
+PRIMARYDB-->>CR: Success
+CR-->>ORCH: Draft created
+ORCH-->>BFF: Response
+BFF-->>UI: Open next step

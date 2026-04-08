@@ -1,0 +1,38 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor GOV as Governance Head
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CR as Change Request Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+GOV->>UI: Open CR
+UI->>BFF: Load CR
+BFF->>ORCH: Get CR detail
+ORCH->>CR: Fetch CR
+CR->>READDB: Query CR
+CR-->>ORCH: Response
+
+alt Approve
+    GOV->>UI: Approve
+    BFF->>ORCH: Approve CR
+    ORCH->>CR: Update status Approved
+    CR->>PRIMARYDB: Update
+    ORCH->>KAFKA: Publish CRApproved
+else Send Back
+    GOV->>UI: Send Back
+    ORCH->>CR: Update status Sent Back
+    CR->>PRIMARYDB: Update
+end
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show updated state

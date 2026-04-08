@@ -1,0 +1,35 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Governance Workspace UI
+participant BFF as Governance BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant GOV as Governance Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+
+ADMIN->>UI: Open Project Governance Definitions
+UI->>BFF: Load governance workspace
+BFF->>ORCH: Get archetype workspace
+ORCH->>GOV: Fetch archetype list
+GOV->>DB: Query governance_archetype
+DB-->>GOV: Archetype records
+GOV-->>ORCH: Workspace response
+ORCH-->>BFF: Aggregated workspace
+BFF-->>UI: Show archetype list / empty state
+
+ADMIN->>UI: Click Add Archetype
+UI->>BFF: Create archetype draft
+BFF->>ORCH: Start archetype draft flow
+ORCH->>GOV: Create archetype draft
+GOV->>DB: Insert governance_archetype(status=Draft)
+GOV->>DB: Insert status history
+GOV-->>ORCH: Draft created
+ORCH-->>BFF: Success
+BFF-->>UI: Open Archetype Details

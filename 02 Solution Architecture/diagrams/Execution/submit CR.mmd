@@ -1,0 +1,36 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CR as Change Request Service
+participant ADP as Service Adapter
+participant NS as Notification Srevice
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Submit CR
+UI->>BFF: Submit request
+BFF->>ORCH: Start submission
+
+alt Resolved
+    ORCH->>CR: Close CR
+    CR->>PRIMARYDB: Update status = Closed
+else Not Resolved
+    ORCH->>CR: Submit for approval
+    CR->>PRIMARYDB: Update status = Pending
+    ORCH->>ADP: Notify Governance
+    ADP->>NS: Notify Governance
+end
+
+ORCH->>KAFKA: Publish CRSubmitted Event
+ORCH-->>BFF: Response
+BFF-->>UI: Show updated status

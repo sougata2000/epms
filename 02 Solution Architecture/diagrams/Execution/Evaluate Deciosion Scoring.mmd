@@ -1,0 +1,23 @@
+sequenceDiagram
+autonumber
+actor OWNER as Decision Owner
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEC As Decision Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+OWNER->>UI: Enter scores
+UI->>BFF: Submit scores
+BFF->>ORCH: Save evaluation
+
+ORCH->>DEC: Save scores
+DEC->>PRIMARYDB: Insert project_decision_scores
+
+DEC->>DEC: Calculate totals
+
+DEC->>PRIMARYDB: Update totals (optional aggregate)
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show calculated results

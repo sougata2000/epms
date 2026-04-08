@@ -1,0 +1,124 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor GOV as Governance Head
+actor JIRA_SYS as JIRA System
+
+participant UI as Change Review UI
+participant BFF as Change Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CR as Change Request Service
+participant GCS as Governance Consumption Service
+participant JIRA as JIRA Sync Service
+participant ADP as Service Adapter
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+GOV->>UI: Approve submitted CR
+UI->>BFF: Submit approval
+BFF->>ORCH: Start CR approval flow
+
+%% ---------------- READ CONTEXT ----------------
+
+ORCH->>CR: Fetch CR details
+CR->>READDB: Read project_change_request, project_cr_additional_data
+READDB-->>CR: CR data
+
+CR->>READDB: Read project_wbs, project_baseline
+READDB-->>CR: WBS + baseline data
+
+CR->>READDB: Read risk_master (if linked)
+READDB-->>CR: Risk data
+
+CR-->>ORCH: Validated CR context
+
+%% ---------------- GOVERNANCE CHECK ----------------
+
+ORCH->>GCS: Check WBS type (JIRA / EPMS)
+GCS->>READDB: Read governance_wbs_object_config
+READDB-->>GCS: WBS type metadata
+GCS-->>ORCH: JIRA applicability
+
+%% ---------------- CORE APPROVAL + BASELINE UPDATE ----------------
+
+ORCH->>CR: Approve CR + update baseline
+
+CR->>PRIMARYDB: Update project_change_request (status = Approved)
+CR->>PRIMARYDB: Insert project_cr_status_history
+
+CR->>PRIMARYDB: Update project_baseline (revised_start_date, revised_end_date)
+
+PRIMARYDB-->>CR: Write success
+CR-->>ORCH: Approval success
+
+%% ---------------- JIRA SYNC ----------------
+
+alt WBS is JIRA-backed
+
+    ORCH->>JIRA: Initiate JIRA CR sync
+
+    JIRA->>PRIMARYDB: Insert project_cr_jira_sync (status = Requested)
+    PRIMARYDB-->>JIRA: Saved
+
+    JIRA->>ADP: Prepare REST payload
+    ADP->>JIRA_SYS: Create/Update CR in JIRA
+
+    alt Sync success (sync response)
+        JIRA_SYS-->>ADP: JIRA CR ID + status
+        ADP-->>JIRA: Response
+
+        JIRA->>PRIMARYDB: Update project_cr_jira_sync (status = Submitted, jira_id)
+        JIRA->>PRIMARYDB: Insert project_cr_jira_sync_history
+
+        PRIMARYDB-->>JIRA: Saved
+
+    else Async / pending
+        JIRA_SYS-->>ADP: Accepted (async)
+
+        JIRA->>PRIMARYDB: Update project_cr_jira_sync (status = Pending Callback)
+        PRIMARYDB-->>JIRA: Saved
+    end
+
+else Not JIRA-backed
+    ORCH-->>ORCH: Skip JIRA sync
+end
+
+%% ---------------- EVENTS + NOTIFICATIONS ----------------
+
+ORCH->>ADP: Notify PM / Risk Owner / WBS Owner
+ORCH->>KAFKA: Publish CRApprovedAndBaselineUpdated Event
+
+%% ---------------- READ REPLICA SYNC ----------------
+
+Note over PRIMARYDB,READDB: Async replication
+PRIMARYDB-->>READDB: Sync project_change_request, project_baseline, project_cr_jira_sync
+
+%% ---------------- WEBHOOK CALLBACK ----------------
+
+opt JIRA webhook callback
+
+    JIRA_SYS->>ADP: Webhook (CR status update)
+    ADP->>ORCH: Forward payload
+
+    ORCH->>JIRA: Process webhook
+
+    JIRA->>PRIMARYDB: Update project_cr_jira_sync (latest status)
+    JIRA->>PRIMARYDB: Insert project_cr_jira_sync_history
+
+    PRIMARYDB-->>JIRA: Saved
+
+    ORCH->>KAFKA: Publish CRJiraStatusSynced Event
+
+    Note over PRIMARYDB,READDB: Async replication
+    PRIMARYDB-->>READDB: Sync latest JIRA status
+
+end
+
+ORCH-->>BFF: Approval completed
+BFF-->>UI: Show Approved state with baseline + JIRA status

@@ -1,0 +1,47 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Archetype Details UI
+participant BFF as Governance BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant GOV as Governance Service
+participant REF as Governance Reference Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ADMIN->>UI: Enter archetype name and description
+UI->>BFF: Save archetype details
+BFF->>ORCH: Start save details flow
+ORCH->>GOV: Save archetype details
+GOV->>DB: Update governance_archetype
+GOV->>DB: Insert status history
+GOV-->>ORCH: Save success
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved details
+
+ADMIN->>UI: Add milestone / activity
+UI->>BFF: Load object type and parent options
+BFF->>ORCH: Get WBS setup references
+ORCH->>REF: Get object types and valid parents
+REF->>DB: Query object_type_mst and existing template rows
+DB-->>REF: Reference data
+REF-->>ORCH: Reference response
+ORCH-->>BFF: Response
+BFF-->>UI: Show WBS object setup form
+
+ADMIN->>UI: Save WBS structure
+UI->>BFF: Save milestone/object/activity
+BFF->>ORCH: Start WBS structure save flow
+ORCH->>GOV: Save WBS structure
+GOV->>DB: Insert/Update governance_wbs_template
+GOV-->>ORCH: Save success
+ORCH->>KAFKA: Publish GovernanceWBSSaved Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved structure

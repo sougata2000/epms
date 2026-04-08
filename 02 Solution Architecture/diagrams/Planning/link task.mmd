@@ -1,0 +1,36 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Dependency UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Search WBS task to link
+UI->>BFF: Search by WBS ID
+BFF->>ORCH: Fetch WBS task context
+ORCH->>PPS: Get WBS element by ID
+PPS->>DB: Query project_wbs
+DB-->>PPS: WBS row
+PPS-->>ORCH: WBS details
+ORCH-->>BFF: Response
+BFF-->>UI: Show dependency form
+
+PM->>UI: Select dependency type and lag, then Save
+UI->>BFF: Save dependency link
+BFF->>ORCH: Start dependency save flow
+ORCH->>PPS: Validate and create dependency
+PPS->>DB: Insert project_wbs_dependency
+PPS-->>ORCH: Save success
+ORCH->>KAFKA: Publish WBSDependencyCreated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Refresh dependency view

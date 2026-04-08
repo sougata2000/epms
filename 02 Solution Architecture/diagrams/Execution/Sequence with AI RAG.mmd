@@ -1,0 +1,47 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor JIRA_SYS as JIRA System
+
+participant ADP as Service Adapter
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant JIRA as JIRA Sync Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+participant AI_ORCH as AI Orchestrator
+participant EMB as Embedding Service
+participant VECTORDB@{ "type": "database", "alias": "EPMS schema"}
+
+JIRA_SYS->>ADP: Webhook (Issue Update)
+ADP->>ORCH: Forward payload
+ORCH->>JIRA: Process webhook
+
+JIRA->>PRIMARYDB: Persist JIRA WBS update
+PRIMARYDB-->>JIRA: Success
+
+Note over PRIMARYDB,READDB: Async replication
+PRIMARYDB-->>READDB: Sync data
+
+ORCH->>KAFKA: Publish JiraWBSSynced Event
+
+%% ---- AI Pipeline (ASYNC) ----
+
+KAFKA-->>AI_ORCH: Consume event
+
+AI_ORCH->>PRIMARYDB: Fetch updated JIRA data
+PRIMARYDB-->>AI_ORCH: Data
+
+AI_ORCH->>EMB: Generate embeddings (chunking)
+EMB-->>AI_ORCH: Vector embeddings
+
+AI_ORCH->>VECTORDB: Store embeddings
+VECTORDB-->>AI_ORCH: Stored
+
+Note over VECTORDB: Ready for RAG / semantic search

@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ASSIGNEE as Assignee
+
+participant UI as Assignee Action UI
+participant BFF as Action Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QUERY as Action Query Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+ASSIGNEE->>UI: Open assigned action landing page
+UI->>BFF: Load my actions
+BFF->>ORCH: Get assignee worklist
+ORCH->>QUERY: Fetch actions by owner
+QUERY->>READDB: Query project_action_assignee_view / action list
+READDB-->>QUERY: Assigned actions
+QUERY-->>ORCH: Worklist response
+ORCH-->>BFF: Response
+BFF-->>UI: Show assigned actions across projects

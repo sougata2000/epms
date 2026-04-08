@@ -1,0 +1,33 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as JIRA Trigger UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant JIRA as JIRA Sync Service
+participant GCS as Governance Consumption Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Trigger JIRA workspace creation
+UI->>BFF: Submit JIRA trigger request
+BFF->>ORCH: Start JIRA workspace flow
+ORCH->>GCS: Check JIRA applicability for archetype/milestone
+GCS-->>ORCH: JIRA applicable
+ORCH->>JIRA: Create workspace request
+JIRA->>PRIMARYDB: Insert JIRA workspace status = Requested
+PRIMARYDB-->>JIRA: Save success
+JIRA-->>ORCH: Request recorded
+ORCH->>ADP: Call JIRA API / notify JIRA admin
+ORCH->>KAFKA: Publish JiraWorkspaceRequested Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show requested state

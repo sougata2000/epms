@@ -1,0 +1,40 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ASSIGNEE as Assignee
+
+participant UI as Action Detail UI
+participant BFF as Action Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant ACT as Action Management Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+ASSIGNEE->>UI: Open assigned action
+UI->>BFF: Load action detail
+BFF->>ORCH: Get action detail view
+ORCH->>ACT: Fetch action detail
+ACT->>READDB: Query action and existing document metadata
+READDB-->>ACT: Action detail
+ACT-->>ORCH: Action response
+ORCH-->>BFF: Response
+BFF-->>UI: Show read-only core fields and editable Action Taken
+
+ASSIGNEE->>UI: Enter action taken and upload supporting doc
+UI->>BFF: Submit closure update
+BFF->>ORCH: Start closure update flow
+ORCH->>ADP: Upload document to storage
+ADP-->>ORCH: File URL
+ORCH->>ACT: Save closure update and document metadata
+ACT->>PRIMARYDB: Update project_action(action_taken)
+ACT->>PRIMARYDB: Insert project_action_document
+PRIMARYDB-->>ACT: Save success
+ACT-->>ORCH: Closure draft saved
+ORCH-->>BFF: Response
+BFF-->>UI: Show ready for final closure confirmation

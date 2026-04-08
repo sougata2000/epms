@@ -1,46 +1,68 @@
-flowchart TB
-    GW[API Gateway]
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
 
+flowchart TB
+
+    %% -------- BFF / ENTRY --------
     BFF[BFF Layer<br/>Journey-Level]
 
-    ORCH[Journey Orchestrator<br/>Workflow Control]
+    %% -------- VPC 1: APP LAYER --------
+    subgraph VPC1["VPC - Application Layer (Microservices + Orchestrators + Adapters)"]
+        ORCH[Journey Orchestrator<br/>Workflow Control]
+        MS[Business Microservices]
+        INT[Integration Layer<br/>External Systems]
+        EVT[Event Platform]
+        CACHE[Redis Cache]
+    end
 
-    MS[Business Microservices]
+    %% -------- VPC 2: DATA LAYER --------
+    subgraph VPC2["VPC - Data Layer"]
+        DB[(RDS / NoSQL / Vector DB<br/>AES-256 Encryption)]
+        DOC[S3 / Document Store]
+    end
 
-    CACHE[Redis Cache<br/>TLS]
-    DB[(RDS / NoSQL / Vector DB)]
-    DOC[S3 / Document Store]
-    EVT[Event Platform]
+    %% -------- VPC 3: AI LAYER --------
+    subgraph VPC3["VPC - AI Services"]
+        AI[AI Orchestrator]
+        GEN[GenAI / LLM]
+    end
 
-    AI[AI Orchestrator]
-    GEN[GenAI / LLM]
-
-    INT[Integration Layer<br/>External Systems]
-
-    MON[Monitoring / SIEM]
+    %% -------- SHARED SECURITY --------
     SEC[Secrets / KMS / IAM]
 
-    GW -->|JWT + Rate Limit| BFF
+    %% -------- OBSERVABILITY --------
+    MON[SIEM / IBM QRadar]
+    OBZ[AppDynamics]
 
-    BFF --> |JWT Validation|ORCH
-    BFF --> |Workflow Control|MS
-    BFF --> |TLS|CACHE
+    %% -------- FLOWS --------
+    BFF -->|JWT + Rate Limit| ORCH
+    BFF -->|Workflow Control| MS
+    BFF -->|TLS 1.2+| CACHE
+    BFF -->|JWT Validation| AI
 
-    ORCH --> |Service-Level JWT|MS
+    ORCH -->|Service-Level JWT| MS
 
-    MS --> |Secure DB protocol|DB
-    MS --> |Service-Level JWT + RBAC + ABAC|DOC
-    MS --> |Kafka / AMQP + TLS/mTLS|EVT
-    MS --> |OAuth2 / API Keys|INT
+   MS -->|RBAC + ABAC + JWT| DOC
+   MS -->|Kafka / AMQP + TLS/mTLS| EVT
+   MS -->|OAuth2 / API Keys| INT
 
-    BFF --> |JWT Validation|AI
-    AI --> |Policy + JWT|GEN
-    AI --> |Secure DB protocol|DB
+    AI -->|Policy + JWT| GEN
+    AI -->|Secure DB Protocol| DB
 
-    SEC --- |HTTPS|BFF
-    SEC --- |HTTPS|MS
-    SEC --- |HTTPS|DB
+    %% -------- SECURITY CONTROLS --------
+    SEC ---|HTTPS/TLS 1.2+| BFF
+    SEC ---|HTTPS/TLS 1.2+| MS
+    SEC ---|HTTPS/TLS 1.2+| DB
+    SEC ---|HTTPS/TLS 1.2+| AI
 
-    MS --> MON
-    ORCH --> MON
-    AI --> MON
+    %% -------- MONITORING --------
+    MS ---|TLS Logs| MON
+    ORCH ---|TLS Logs| MON
+    AI ---|TLS Logs| MON
+
+    MS ---|APM Telemetry| OBZ
+    AI ---|APM Telemetry| OBZ

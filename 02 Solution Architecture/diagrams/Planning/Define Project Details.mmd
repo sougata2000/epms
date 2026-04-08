@@ -1,0 +1,36 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Project Details UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open Project Details Definition
+UI->>BFF: Load project details
+BFF->>ORCH: Get planning controls
+ORCH->>PPS: Fetch project details
+PPS->>DB: Query project_planning
+DB-->>PPS: Project planning data
+PPS-->>ORCH: Response
+ORCH-->>BFF: Project details
+BFF-->>UI: Show details form
+
+PM->>UI: Select actuals tracking mode and Save
+UI->>BFF: Save project details
+BFF->>ORCH: Start save flow
+ORCH->>PPS: Save project details
+PPS->>DB: Update project_planning
+PPS-->>ORCH: Save success
+ORCH->>KAFKA: Publish ProjectDetailsSaved Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show confirmation

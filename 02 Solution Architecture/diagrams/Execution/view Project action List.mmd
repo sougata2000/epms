@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Action Management UI
+participant BFF as Action Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QUERY as Action Query Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open project action landing page
+UI->>BFF: Load project action list
+BFF->>ORCH: Get project actions
+ORCH->>QUERY: Fetch project action list
+QUERY->>READDB: Query actions for selected project
+READDB-->>QUERY: Action list
+QUERY-->>ORCH: Project action response
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show action list with Add CTA

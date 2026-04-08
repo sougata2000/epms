@@ -1,0 +1,27 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+
+participant UI as Planning UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open Planning Worklist
+UI->>BFF: Load worklist
+BFF->>ORCH: Get worklist by role
+ORCH->>PPS: Fetch planning records
+PPS->>DB: Query project_planning by role/status
+DB-->>PPS: Planning rows
+PPS->>PPS: Derive CTA from current status
+PPS-->>ORCH: Worklist response
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show worklist with CTA

@@ -1,15 +1,22 @@
-
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
 sequenceDiagram
     autonumber
-    actor User
+    actor Campaign Moderator
     participant UI
     participant APIGateway as API Gateway
     participant BFF as Campaign BFF
-    participant Orch as Campaign Submission Orchestrator
-    participant Participants as Participants Service
+    participant Orch as Campaign Launch <Br/>Orchestrator
+    participant Participants as User Service
     participant Campaign as Campaign Service
-    participant DB as PostgreSQL
-    participant Bus as Kafka/Event Bus
+    %%participant DB as PostgreSQL
+    participant DB@{ "type": "database", "alias": "EPMS WBS schema"}
+    participant Bus@{ "type": "queue", "alias": "Message Bus"}
+    %%participant Bus as Kafka/Event Bus
     participant Notify as Notification Service
     participant Logger as Logger Service
 

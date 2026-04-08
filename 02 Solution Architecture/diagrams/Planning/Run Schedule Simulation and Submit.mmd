@@ -1,0 +1,48 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+
+participant UI as Simulation UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PS as Project Planning Service
+participant RCS as Resource Capacity Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+BP->>UI: Open Simulation Screen
+UI->>BFF: Load Estimates
+BFF->>ORCH: Fetch estimates
+ORCH->>PS: Get PM/BP estimates
+PS->>DB: Read estimate data
+DB-->>PS: Estimates
+PS-->>ORCH: Estimates
+ORCH-->>BFF: Response
+BFF-->>UI: Display estimates
+
+BP->>UI: Execute Simulation
+UI->>BFF: Run simulation
+BFF->>ORCH: Start simulation
+ORCH->>RCS: Compute earliest start + conflicts
+RCS-->>ORCH: Simulation output
+ORCH->>PS: Save simulation result
+PS->>DB: Insert simulation + conflicts
+PS-->>ORCH: Save success
+ORCH-->>BFF: Simulation output
+BFF-->>UI: Display results
+
+BP->>UI: Submit proposed dates
+UI->>BFF: Submit schedule
+BFF->>ORCH: Submit schedule flow
+ORCH->>PS: Save proposal + lock estimates
+PS->>DB: Update planning status
+PS->>DB: Set estimate_locked_flag = true
+ORCH->>KAFKA: Publish ScheduleSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show confirmation

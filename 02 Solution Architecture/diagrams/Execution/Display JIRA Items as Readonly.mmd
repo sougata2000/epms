@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as JIRA Linked WBS UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant JIRA as JIRA Sync Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open JIRA-linked milestone
+UI->>BFF: Load JIRA-synced WBS
+BFF->>ORCH: Get read-only JIRA WBS view
+ORCH->>JIRA: Fetch synced JIRA hierarchy
+JIRA->>READDB: Query JIRA workspace and synced JIRA items
+READDB-->>JIRA: Synced JIRA rows
+JIRA-->>ORCH: Read-only JIRA WBS
+ORCH-->>BFF: Response
+BFF-->>UI: Show JIRA WBS in read-only format

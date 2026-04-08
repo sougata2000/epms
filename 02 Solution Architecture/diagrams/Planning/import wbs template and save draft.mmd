@@ -1,0 +1,46 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as WBS Creation UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant GCS as Governance Consumption Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Click Import WBS
+UI->>BFF: Import template request
+BFF->>ORCH: Start WBS import flow
+ORCH->>GCS: Get project archetype context
+GCS->>DB: Query project_planning for archetype_id and version
+DB-->>GCS: Archetype context
+GCS-->>ORCH: Archetype response
+
+ORCH->>GCS: Get governance WBS template
+GCS->>DB: Query governance_wbs_template
+DB-->>GCS: Template rows
+GCS-->>ORCH: Governance template
+
+ORCH->>PPS: Create project WBS from governance template
+PPS->>DB: Insert project_wbs with governance mapping
+PPS-->>ORCH: Import success
+ORCH-->>BFF: Imported WBS response
+BFF-->>UI: Show WBS table / gantt
+
+PM->>UI: Save WBS draft
+UI->>BFF: Save draft
+BFF->>ORCH: Start save WBS flow
+ORCH->>PPS: Save WBS draft
+PPS->>DB: Update project_wbs
+PPS-->>ORCH: Save success
+ORCH->>KAFKA: Publish WBSDraftSaved Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved state

@@ -1,0 +1,36 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Estimate UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant RCS as Resource Capacity Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open Submit Estimates
+UI->>BFF: Load project and skillsets
+BFF->>ORCH: Fetch estimate references
+ORCH->>RCS: Get skillset master
+RCS-->>ORCH: Skillsets
+ORCH-->>BFF: Response
+BFF-->>UI: Show estimate form
+
+PM->>UI: Enter estimates and Submit
+UI->>BFF: Submit estimates
+BFF->>ORCH: Start estimate submission flow
+ORCH->>PPS: Save manpower estimates
+PPS->>DB: Insert project_manpower_estimate
+PPS->>DB: Update project_planning status if applicable
+PPS-->>ORCH: Save success
+ORCH->>KAFKA: Publish EstimateSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show confirmation

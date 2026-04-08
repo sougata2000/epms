@@ -1,0 +1,65 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor COE as CoE Head
+
+participant UI as WBS Approval UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant GCS as Governance Consumption Service
+participant ADP as Service Adapter
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias":"Message Bus"}
+
+COE->>UI: Open WBS approval item
+UI->>BFF: Load WBS review details
+BFF->>ORCH: Get WBS approval view
+ORCH->>PPS: Fetch WBS approval details
+PPS->>DB: Query project_wbs and approval data
+DB-->>PPS: WBS review data
+PPS-->>ORCH: Review response
+ORCH-->>BFF: Response
+BFF-->>UI: Show WBS review
+
+alt Approve
+    COE->>UI: Approve WBS
+    UI->>BFF: Submit approval
+    BFF->>ORCH: Start approve flow
+    ORCH->>GCS: Check object behavior 
+    GCS-->>ORCH: Applicability response
+    ORCH->>PPS: Approve WBS and freeze baseline
+    PPS->>DB: Update project_wbs_approval = Approved
+    PPS->>DB: Update project_wbs status = Approved
+    PPS->>DB: Update project_planning baseline_frozen_flag = true
+    PPS->>DB: Insert status history
+    ORCH->>ADP: Trigger notifications 
+    ORCH->>KAFKA: Publish WBSApproved Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show approved state
+else Send Back
+    COE->>UI: Send back WBS
+    UI->>BFF: Submit send back
+    BFF->>ORCH: Start send back flow
+    ORCH->>PPS: Update status = Sent Back
+    PPS->>DB: Update approval record
+    PPS->>DB: Insert status history
+    ORCH->>KAFKA: Publish WBSSentBack Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show sent back state
+else Reject
+    COE->>UI: Reject WBS
+    UI->>BFF: Submit reject
+    BFF->>ORCH: Start reject flow
+    ORCH->>PPS: Update status = Rejected
+    PPS->>DB: Update approval record
+    PPS->>DB: Insert status history
+    ORCH->>KAFKA: Publish WBSRejected Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show rejected state
+end

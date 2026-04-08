@@ -1,0 +1,39 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as WBS Ownership UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant EXE as Execution Service
+participant RMS as Resource Management Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open WBS item for owner assignment
+UI->>BFF: Load eligible owners
+BFF->>ORCH: Get tagged resources for project
+ORCH->>RMS: Fetch approved project allocations
+RMS->>READDB: Query active resource allocations
+READDB-->>RMS: Tagged resources
+RMS-->>ORCH: Eligible owners
+ORCH-->>BFF: Response
+BFF-->>UI: Show owner dropdown
+
+PM->>UI: Select owner and Save
+UI->>BFF: Assign WBS owner
+BFF->>ORCH: Start owner assignment flow
+ORCH->>EXE: Save WBS owner
+EXE->>PRIMARYDB: Insert/Update WBS execution owner mapping
+PRIMARYDB-->>EXE: Save success
+EXE-->>ORCH: Save success
+ORCH->>KAFKA: Publish WBSOwnerAssigned Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated owner

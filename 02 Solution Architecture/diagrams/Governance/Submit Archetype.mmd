@@ -1,0 +1,38 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Governance Submit UI
+participant BFF as Governance BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant GOV as Governance Service
+participant REF as Governance Reference Service
+participant ADP as Service Adapter
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ADMIN->>UI: Click Submit
+UI->>BFF: Submit archetype
+BFF->>ORCH: Start archetype submit flow
+ORCH->>REF: Validate archetype completeness
+REF-->>ORCH: Validation passed
+ORCH->>GOV: Submit archetype
+GOV->>DB: Update status = Submitted
+GOV->>DB: Insert status history
+GOV-->>ORCH: Submitted
+
+ORCH->>GOV: Activate archetype version
+GOV->>DB: Update status = Active, active_flag = true
+GOV->>DB: Insert status history
+GOV-->>ORCH: Activation success
+
+ORCH->>ADP: Publish downstream availability if applicable
+ORCH->>KAFKA: Publish ArchetypeActivated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show archetype active for downstream use

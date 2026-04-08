@@ -1,0 +1,53 @@
+flowchart LR
+    BP[Business Partner / Dev / QA / SecOps]
+
+    JIRA[Jira<br/>Epics / Campaigns / Ideas / Defects]
+
+    GIT[Source Code Repo<br/>EPMS Services]
+
+    JENKINS[Jenkins Pipeline<br/>CI/CD Orchestrator]
+
+    MVN[Maven Build<br/>Spring Boot Services]
+    SAST[SonarQube<br/>SAST + Code Quality]
+    DEP[Dependency Scan<br/>OSS Vulnerability]
+
+    DOCKER[Docker Build<br/>Containerize Services]
+    IMGSCAN[Image Scan<br/>ECR Scan]
+
+    ECR[ECR Registry<br/>EPMP Images]
+
+    BFF[BFF Service]
+    ORCH[Journey Orchestrator]
+    MS[Business Microservices]
+    AI[AI Orchestrator / Agents]
+    ADAPT[Integration Adapters<br/>Jira / Zendesk/SAP]
+
+    DEV[Dev Env]
+    QA[QA Env]
+    UAT[UAT Env]
+    PROD[Prod Env]
+
+    SEC[Secrets Manager / IAM]
+    OBS[Monitoring / SIEM]
+
+    BP --> JIRA
+    JIRA --> GIT
+    GIT --> JENKINS
+
+    JENKINS --> MVN --> SAST --> DEP --> DOCKER --> IMGSCAN --> ECR
+
+    ECR --> DEV
+    ECR --> QA
+    ECR --> UAT
+    ECR --> PROD
+
+    DEV --> BFF
+    DEV --> ORCH
+    DEV --> MS
+    DEV --> AI
+    DEV --> ADAPT
+
+    QA --> OBS
+    PROD --> OBS
+
+    JENKINS --> SEC

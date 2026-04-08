@@ -1,0 +1,53 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Governance Setup UI
+participant BFF as Governance BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant GOV as Governance Service
+participant REF as Governance Reference Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ADMIN->>UI: Add QA checklist items
+UI->>BFF: Save QA checklist
+BFF->>ORCH: Start QA checklist flow
+ORCH->>GOV: Save checklist items
+GOV->>DB: Insert/Update governance_qa_checklist
+GOV-->>ORCH: Save success
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved checklist
+
+ADMIN->>UI: Configure QA ownership rule
+UI->>BFF: Save QA ownership setting
+BFF->>ORCH: Start QA rule flow
+ORCH->>REF: Validate release manager reference
+REF->>DB: Query role/release manager reference
+DB-->>REF: Reference response
+REF-->>ORCH: Validation success
+ORCH->>GOV: Save QA ownership rule
+GOV->>DB: Insert/Update governance_qa_rule
+GOV-->>ORCH: Save success
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved QA rule
+
+ADMIN->>UI: Open Access Management and save rules
+UI->>BFF: Save access rules
+BFF->>ORCH: Start access save flow
+ORCH->>REF: Get role master if needed
+REF->>DB: Query role reference
+DB-->>REF: Roles
+REF-->>ORCH: Reference response
+ORCH->>GOV: Save access rules
+GOV->>DB: Insert/Update governance_access_rule
+GOV-->>ORCH: Save success
+ORCH->>KAFKA: Publish GovernanceAccessSaved Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved access rules

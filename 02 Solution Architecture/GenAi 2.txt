@@ -46,3 +46,21 @@ transition history if you need cycle-time analytics
 2nd 21900
 3rd 26000
 4 th 21500 
+
+
+How is RBAC / ABAC managed.
+
+KYC: 10 years
+Contracts: 7 years
+Logs (System/application) : 1 years, Security Logs : 3 years, Audit Logs : 7 years
+
+•	Governance
+•	Planning
+•	Execution
+•	Resource Management
+•	Timesheet Management
+•	Action Management
+•	Risk Management
+•	Dependency Management
+•	Decision Management
+•	Closure

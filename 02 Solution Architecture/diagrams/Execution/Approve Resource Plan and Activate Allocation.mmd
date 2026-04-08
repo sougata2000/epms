@@ -1,0 +1,52 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor RM as Resource Manager
+
+participant UI as Resource Plan Approval UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RMS as Resource Management Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+RM->>UI: Open submitted resource plan
+UI->>BFF: Load resource plan details
+BFF->>ORCH: Get approval view
+ORCH->>RMS: Fetch resource plan
+RMS->>READDB: Query resource plan and allocation summary
+READDB-->>RMS: Plan details
+RMS-->>ORCH: Approval response
+ORCH-->>BFF: Response
+BFF-->>UI: Show plan summary
+
+alt Approve
+    RM->>UI: Approve resource plan
+    UI->>BFF: Submit approval
+    BFF->>ORCH: Start approval flow
+    ORCH->>RMS: Approve and activate allocations
+    RMS->>PRIMARYDB: Update resource plan status = Approved
+    RMS->>PRIMARYDB: Update resource allocations = Active
+    PRIMARYDB-->>RMS: Approval success
+    ORCH->>ADP: Notify team members and timesheet integration
+    ORCH->>KAFKA: Publish ResourcePlanApproved Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show approved state
+else Send Back / Reject
+    RM->>UI: Send back / reject plan
+    UI->>BFF: Submit decision
+    BFF->>ORCH: Start send back / reject flow
+    ORCH->>RMS: Update resource plan decision
+    RMS->>PRIMARYDB: Update resource plan status
+    PRIMARYDB-->>RMS: Decision saved
+    ORCH->>KAFKA: Publish ResourcePlanReturned Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show returned state
+end

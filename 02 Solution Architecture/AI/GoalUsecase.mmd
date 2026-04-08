@@ -1,0 +1,99 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+
+    actor U as Campaign Moderator
+    participant UI as EPMS UI
+    participant BFF as BFF Layer
+    participant AUTH as Auth Service (JWT)
+    participant AIO as AI Orchestrator
+    participant PR as Prompt Registry
+    participant AG as Agent Runtime
+    participant MEM as Agent Working Memory
+    participant MCP as MCP Tool Layer
+    participant IDEA as Idea API
+    participant GOAL as Goal API
+    participant SCORE as Scoring API
+    participant RAG as Vector DB (pgvector)
+    participant LLM as LLM (Bedrock)
+    participant AUD as Audit Log
+
+    %% USER REQUEST
+    U->>UI: Ask Goal Achievement %
+    UI->>BFF: Request
+    BFF->>AUTH: Validate JWT
+    AUTH-->>BFF: OK
+
+    BFF->>AIO: Forward request
+
+    %% PROMPT + AGENT INIT
+    AIO->>PR: Fetch prompt template
+    PR-->>AIO: Prompt
+    AIO->>AG: Initialize Agent
+
+    %% MEMORY INIT
+    AG->>MEM: Create execution context
+
+    %% STEP 1: AGENT DECIDES TOOL (IDEA)
+    AG->>LLM: Decide next action (tools available)
+    LLM-->>AG: Call Idea API
+
+    AG->>MCP: Execute Idea API
+    MCP->>IDEA: Fetch ideas
+    IDEA-->>MCP: Idea list
+    MCP-->>AG: Idea data
+
+    AG->>MEM: Store idea data
+
+    %% STEP 2: GOAL DATA
+    AG->>LLM: Next tool?
+    LLM-->>AG: Call Goal API
+
+    AG->>MCP: Execute Goal API
+    MCP->>GOAL: Fetch goals
+    GOAL-->>MCP: Goal data
+    MCP-->>AG: Goal data
+
+    AG->>MEM: Store goal data
+
+    %% STEP 3: SCORING API 
+    AG->>LLM: Next tool Selection
+    LLM-->>AG: Call Scoring Engine
+
+    AG->>MCP: Execute Scoring API
+    MCP->>SCORE: Compute metrics
+    SCORE-->>MCP: Scores (idea count, <br/>maturity, etc.)
+    MCP-->>AG: Scores
+
+    AG->>MEM: Store scoring metrics
+
+    %% STEP 4:  RAG Retrival
+    AG->>LLM: Need historical context?
+    alt RAG required
+        LLM-->>AG: Use Vector DB
+        AG->>MCP: Semantic search
+        MCP->>RAG: Fetch similar campaigns
+        RAG-->>MCP: Historical data
+        MCP-->>AG: Context
+        AG->>MEM: Store historical context
+    else No RAG
+        AG->>MEM: Skip RAG
+    end
+
+    %% FINAL REASONING
+    AG->>LLM: Generate final output using memory
+    Note right of MEM: Contains ideas + <br/>goals + scores + context
+
+    LLM-->>AG: % Achievement + Explanation
+
+    %% RESPONSE
+    AG->>AIO: Final response
+    AIO->>AUD: Log execution (tools, data, output in OTLP)
+    AIO-->>BFF: Response
+    BFF-->>UI: Response
+    UI-->>U: Show result

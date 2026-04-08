@@ -1,0 +1,20 @@
+sequenceDiagram
+autonumber
+actor OWNER as Decision Owner
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEC as Decision Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+OWNER->>UI: Select / override option
+UI->>BFF: Submit selection
+BFF->>ORCH: Process selection
+
+ORCH->>DEC: Validate selection + justification
+
+DEC->>PRIMARYDB: Insert project_decision_final
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show selected option

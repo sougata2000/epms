@@ -1,0 +1,23 @@
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEC
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Enter decision details
+UI->>BFF: Save draft
+BFF->>ORCH: Create decision
+
+ORCH->>DEC: Create draft decision
+DEC->>PRIMARYDB: Insert project_decision
+DEC->>PRIMARYDB: Insert project_decision_alternatives
+DEC->>PRIMARYDB: Insert project_decision_criteria
+
+PRIMARYDB-->>DEC: Success
+DEC-->>ORCH: Draft created
+ORCH-->>BFF: Response
+BFF-->>UI: Draft saved

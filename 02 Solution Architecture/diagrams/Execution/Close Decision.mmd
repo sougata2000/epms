@@ -1,0 +1,24 @@
+sequenceDiagram
+autonumber
+actor OWNER as Decision Owner
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEC as Decision Manager
+participant ADP Service Adapter
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+OWNER->>UI: Submit final decision
+UI->>BFF: Submit closure
+BFF->>ORCH: Close decision
+
+ORCH->>DEC: Update status Closed
+
+DEC->>PRIMARYDB: Update project_decision
+DEC->>PRIMARYDB: Insert project_decision_status_history
+
+ORCH->>ADP: Notify Project Manager
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show Closed status

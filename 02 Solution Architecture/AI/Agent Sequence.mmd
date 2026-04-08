@@ -1,57 +1,56 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
 sequenceDiagram
-    actor U as User / Persona
-    participant UI as EPMS UI / Teams
-    participant BFF as BFF / API Layer
-    participant AIO as AI Orchestrator
-    participant PR as Persona Resolver
-    participant AG as Persona Agent Runtime
-    participant RAG as RAG / Knowledge Base
-    participant LLM as LLM / Bedrock Model
-    participant TOOL as Tool Layer / EPMS APIs
-    participant JO as Journey Orchestrator
-    participant AP as Human Approver
-    participant AUD as Audit / Monitoring
+    autonumber
+    actor User as User / Persona
+    participant API as Spring Boot REST API
+    participant MCP as MCP Registry/Layer
+    participant Jira as Jira Tool (Adapter)
+    participant KB as pgvector Knowledge Base
+    participant Bedrock as Bedrock Model (LLM)
+    participant Risk as Risk Agent
+    participant Cost as Cost Agent
+    participant Sched as Scheduling Agent
 
-    U->>UI: Ask complex <br/>question / <br/>request action
-    UI->>BFF: Send AI request
-    BFF->>AIO: Forward <br/>request with user context
-    AIO->>PR: Resolve <br/>persona, policy, tools
-    PR-->>AIO: Persona agent definition
+    User->>API: Analyze the following project <br/>tasks and Jira issues to <br/>identify potential risks
 
-    AIO->>AG: Initialize agent runtime
-    AG->>RAG: Retrieve <br/>enterprise/project context
-    RAG-->>AG: Relevant <br/>knowledge/context
+    API->>MCP: Request tools for agents
 
-    AG->>LLM: Plan steps/<br/>reason on task
-    LLM-->>AG: Plan + required tool calls
+    par Parallel Agent Execution
+        API->>Risk: Invoke Risk Agent
+        Risk->>MCP: Call Jira Tool
+        MCP->>Jira: Fetch Jira issues
+        Jira-->>MCP: Return issues
+        Risk->>MCP: Call Bedrock Tool
+        MCP->>Bedrock: Risk analysis prompt
+        Bedrock-->>MCP: Risk results
+        MCP-->>Risk: Return risk analysis
+        Risk-->>API: Risks
 
-    AG->>TOOL: Invoke EPMS<br/>APIs / external tools
-    TOOL-->>AG: Return live business data
+        API->>Cost: Invoke Cost Agent
+        Cost->>MCP: Call KB Tool
+        MCP->>KB: Query embeddings
+        KB-->>MCP: Return similar tasks
+        Cost->>MCP: Call Bedrock Tool
+        MCP->>Bedrock: Cost optimization prompt
+        Bedrock-->>MCP: Cost results
+        MCP-->>Cost: Return cost analysis
+        Cost-->>API: Cost optimization
 
-    AG->>LLM: Re-evaluate <br/>with tool results
-    LLM-->>AG: Analysis + <br/>recommendations + <br/>proposed action
-
-    alt Read-only or recommendation only
-        AG-->>AIO: Final response
-    else Non-critical execution
-        AG->>TOOL: Execute permitted action
-        TOOL-->>AG: Execution result
-        AG-->>AIO: Final response <br/>with action status
-    else Critical execution
-        AG-->>AIO: Draft action <br/>requiring approval
-        AIO->>JO: Start approval workflow
-        JO->>AP: Request approval
-        AP-->>JO: Approve / Reject
-        alt Approved
-            JO->>TOOL: Execute <br/>approved action
-            TOOL-->>JO: Execution result
-            JO-->>AIO: Approved and completed
-        else Rejected
-            JO-->>AIO: Rejected <br/>/ returned for review
-        end
+        API->>Sched: Invoke Scheduling Agent
+        Sched->>MCP: Call Jira Tool
+        MCP->>Jira: Fetch Jira issues
+        Jira-->>MCP: Return issues
+        Sched->>MCP: Call Bedrock Tool
+        MCP->>Bedrock: Scheduling prompt
+        Bedrock-->>MCP: Schedule results
+        MCP-->>Sched: Return schedule analysis
+        Sched-->>API: Schedule
     end
 
-    AIO->>AUD: Log prompt, <br/>tools, decisions, actions
-    AIO-->>BFF: Return final outcome
-    BFF-->>UI: Response
-    UI-->>U: Show result
+    API->>API: Aggregate agent outputs
+    API-->>User: Unified AI recommendations (JSON)

@@ -1,0 +1,37 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Resource Tagging UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RMS as Resource Management Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Search employee for project allocation
+UI->>BFF: Search employee by name
+BFF->>ORCH: Get available employee list
+ORCH->>ADP: Fetch employee pool / profile list
+ADP-->>ORCH: Employee results
+ORCH-->>BFF: Search response
+BFF-->>UI: Show employee result list
+
+PM->>UI: Select employee and enter allocation dates
+UI->>BFF: Save resource tagging
+BFF->>ORCH: Start resource tagging flow
+ORCH->>RMS: Validate and save tagged resource
+RMS->>READDB: Check existing project/resource context
+READDB-->>RMS: Existing context
+RMS->>PRIMARYDB: Insert/Update resource allocation draft
+PRIMARYDB-->>RMS: Save success
+RMS-->>ORCH: Save success
+ORCH-->>BFF: Success
+BFF-->>UI: Show tagged resource list

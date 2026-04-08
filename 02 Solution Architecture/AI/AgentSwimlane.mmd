@@ -1,0 +1,64 @@
+flowchart TB
+    %% Define swimlanes
+    subgraph Frontend
+        U[User Dashboard]
+    end
+
+    subgraph Backend
+        API[Spring Boot REST API]
+        AGG[Aggregator]
+    end
+
+    
+
+    subgraph Tools
+        Jira[Jira Adapter Tool]
+        KB[pgvector Knowledge Base]
+        Bedrock[Bedrock Reasoning Tool]
+    end
+
+    subgraph Agents
+        Risk[Risk Agent]
+        Cost[Cost Agent]
+        Sched[Scheduling Agent]
+    end
+
+    %% Flow
+    U --> API
+    API --> MCP
+
+    %% Agent calls
+    API --> Risk
+    API --> Cost
+    API --> Sched
+
+    %% Risk Agent path
+    Risk --> MCP
+    MCP --> Jira
+    MCP --> Bedrock
+    Jira --> MCP
+    Bedrock --> MCP
+    MCP --> Risk
+
+    %% Cost Agent path
+    Cost --> MCP
+    MCP --> KB
+    MCP --> Bedrock
+    KB --> MCP
+    Bedrock --> MCP
+    MCP --> Cost
+
+    %% Scheduling Agent path
+    Sched --> MCP
+    MCP --> Jira
+    MCP --> Bedrock
+    Jira --> MCP
+    Bedrock --> MCP
+    MCP --> Sched
+
+    %% Aggregation
+    Risk --> AGG
+    Cost --> AGG
+    Sched --> AGG
+    AGG --> API
+    API --> U

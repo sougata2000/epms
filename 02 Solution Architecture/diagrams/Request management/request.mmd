@@ -1,0 +1,39 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor User as Business User
+    participant UI as Request UI
+    participant BFF as Request BFF
+    
+    participant RS as Request Service
+    participant ADP as Service Adapter
+    participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+    participant DB@{ "type": "database", "alias": "EPMS Request schema"}
+   %%participant DBReadReplica@{ "type": "database", "alias": "Read Model"}
+
+    User->>UI: Enter request details
+    UI->>BFF: Save draft / next step
+    BFF->>ORCH: Start request flow
+    ORCH->>RS: Create / update request
+    RS->>DB: Save request data
+
+    User->>UI: Upload BRD / supporting document
+    UI->>BFF: Upload file
+    BFF->>ORCH: Continue request flow
+    ORCH->>ADP: Store file
+    ADP-->>ORCH: File URL
+    ORCH->>RS: Save document metadata
+    RS->>DB: Insert request_document
+
+    User->>UI: Submit request
+    UI->>BFF: Submit request
+    BFF->>ORCH: Final submission
+    ORCH->>RS: Generate request number and submit
+    RS->>DB: Update request status
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show request registered

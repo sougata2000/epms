@@ -1,0 +1,50 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor BP as Business Partner
+
+participant UI as Simulation UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant RCS as Resource Capacity Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+BP->>UI: Open Schedule Simulation
+UI->>BFF: Load estimate windows
+BFF->>ORCH: Fetch estimates
+ORCH->>PPS: Get PM/BP estimates
+PPS->>DB: Read estimate rows
+DB-->>PPS: Estimates
+PPS-->>ORCH: Estimate response
+ORCH-->>BFF: Response
+BFF-->>UI: Show estimate windows
+
+BP->>UI: Select source and Execute
+UI->>BFF: Run simulation
+BFF->>ORCH: Start simulation flow
+ORCH->>RCS: Compute earliest start and conflicts
+RCS-->>ORCH: Simulation output
+ORCH->>PPS: Save simulation result
+PPS->>DB: Insert schedule_simulation and conflicts
+PPS-->>ORCH: Saved result
+ORCH-->>BFF: Simulation response
+BFF-->>UI: Show earliest date and conflicts
+
+BP->>UI: Enter dates and Submit
+UI->>BFF: Submit proposed schedule
+BFF->>ORCH: Start schedule submit flow
+ORCH->>PPS: Save proposal and lock PM estimate entry
+PPS->>DB: Update project_planning status = Awaiting CoE Approval
+PPS->>DB: Set estimate_locked_flag = true
+PPS->>DB: Insert schedule_approval
+PPS-->>ORCH: Submission success
+ORCH->>KAFKA: Publish ScheduleSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show submission confirmation

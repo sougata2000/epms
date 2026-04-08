@@ -1,0 +1,22 @@
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEC as Decision Service
+participant ADP As Service Adapter
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Submit decision
+UI->>BFF: Submit request
+BFF->>ORCH: Start submission
+
+ORCH->>DEC: Update status Submitted
+DEC->>PRIMARYDB: Update project_decision (status)
+
+ORCH->>ADP: Notify Decision Owner
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show submitted state

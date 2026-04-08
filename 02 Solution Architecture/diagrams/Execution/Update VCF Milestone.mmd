@@ -1,0 +1,41 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as VCF Milestone UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant EXE as Execution Service
+participant GCS as Governance Consumption Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Click VCF milestone
+UI->>BFF: Open VCF update view
+BFF->>ORCH: Validate VCF milestone behavior
+ORCH->>GCS: Get object behavior metadata
+GCS-->>ORCH: VCF milestone applicability
+ORCH->>EXE: Fetch current VCF milestone state
+EXE->>READDB: Query WBS execution / VCF data
+READDB-->>EXE: Current VCF data
+EXE-->>ORCH: Response
+ORCH-->>BFF: Response
+BFF-->>UI: Show VCF update form
+
+PM->>UI: Save VCF update
+UI->>BFF: Submit VCF update
+BFF->>ORCH: Start VCF update flow
+ORCH->>EXE: Save VCF execution data
+EXE->>PRIMARYDB: Insert/Update VCF execution
+PRIMARYDB-->>EXE: Save success
+EXE-->>ORCH: Save success
+ORCH->>KAFKA: Publish VCFUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated milestone state

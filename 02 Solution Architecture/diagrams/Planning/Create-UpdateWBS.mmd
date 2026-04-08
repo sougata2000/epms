@@ -1,0 +1,39 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as WBS Task UI
+participant BFF as Project Planning BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant PPS as Project Planning Service
+participant GCS as Governance Consumption Service
+participant DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open WBS element form
+UI->>BFF: Load context and rules
+BFF->>ORCH: Get hierarchy and governance rules
+ORCH->>GCS: Get hierarchy rules and frozen constraints
+GCS-->>ORCH: Governance rules
+ORCH->>PPS: Get parent WBS context
+PPS->>DB: Query project_wbs
+DB-->>PPS: Parent row
+PPS-->>ORCH: Parent details
+ORCH-->>BFF: Response
+BFF-->>UI: Show WBS form
+
+PM->>UI: Enter WBS details and Submit
+UI->>BFF: Create/Update WBS element
+BFF->>ORCH: Start WBS element flow
+ORCH->>PPS: Validate and save WBS element
+PPS->>DB: Insert/Update project_wbs
+PPS-->>ORCH: Save success
+ORCH->>KAFKA: Publish WBSElementSaved Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show success state

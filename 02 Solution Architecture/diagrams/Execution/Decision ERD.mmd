@@ -1,0 +1,93 @@
+erDiagram
+
+    PROJECT {
+        UUID project_id PK
+        string project_name
+        string project_status
+    }
+
+    PROJECT_WBS {
+        UUID project_wbs_id PK
+        UUID project_id FK
+        string wbs_code
+        string wbs_title
+        string wbs_level
+        string wbs_status
+    }
+
+    PROJECT_DECISION {
+        UUID decision_id PK
+        UUID project_id FK
+        UUID linked_wbs_id FK
+        string decision_name
+        string description
+        string problem_statement
+        UUID owner_id
+        UUID created_by
+        datetime created_at
+        date target_closure_date
+        string status
+        UUID selected_alternative_id
+    }
+
+    PROJECT_DECISION_ALTERNATIVE {
+        UUID alternative_id PK
+        UUID decision_id FK
+        string name
+        string description
+    }
+
+    PROJECT_DECISION_CRITERIA {
+        UUID criteria_id PK
+        UUID decision_id FK
+        string criteria_name
+        decimal weightage
+    }
+
+    PROJECT_DECISION_SCORES {
+        UUID score_id PK
+        UUID decision_id FK
+        UUID alternative_id FK
+        UUID criteria_id FK
+        decimal score
+    }
+
+    PROJECT_DECISION_FINAL {
+        UUID final_id PK
+        UUID decision_id FK
+        UUID selected_alternative_id FK
+        text justification
+        decimal total_score
+    }
+
+    PROJECT_DECISION_DOCUMENTS {
+        UUID doc_id PK
+        UUID decision_id FK
+        string file_url
+        UUID uploaded_by
+        datetime uploaded_at
+    }
+
+    PROJECT_DECISION_STATUS_HISTORY {
+        UUID history_id PK
+        UUID decision_id FK
+        string from_status
+        string to_status
+        UUID changed_by
+        datetime changed_at
+    }
+
+    PROJECT ||--o{ PROJECT_WBS : contains
+    PROJECT ||--o{ PROJECT_DECISION : has
+    PROJECT_WBS ||--o{ PROJECT_DECISION : linked_to
+
+    PROJECT_DECISION ||--o{ PROJECT_DECISION_ALTERNATIVE : has
+    PROJECT_DECISION ||--o{ PROJECT_DECISION_CRITERIA : has
+    PROJECT_DECISION ||--o{ PROJECT_DECISION_SCORES : captures
+    PROJECT_DECISION ||--|| PROJECT_DECISION_FINAL : finalizes
+    PROJECT_DECISION ||--o{ PROJECT_DECISION_DOCUMENTS : attaches
+    PROJECT_DECISION ||--o{ PROJECT_DECISION_STATUS_HISTORY : tracks
+
+    PROJECT_DECISION_ALTERNATIVE ||--o{ PROJECT_DECISION_SCORES : scored_in
+    PROJECT_DECISION_CRITERIA ||--o{ PROJECT_DECISION_SCORES : evaluated_by
+    PROJECT_DECISION_ALTERNATIVE ||--o| PROJECT_DECISION_FINAL : selected_as

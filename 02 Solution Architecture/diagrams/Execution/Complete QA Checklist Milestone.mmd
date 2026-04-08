@@ -1,0 +1,42 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor RM as Release Manager
+actor TM as Team Member
+
+participant UI as QA Checklist UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant EXE as Execution Service
+participant GCS as Governance Consumption Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+RM->>UI: Open QA milestone
+UI->>BFF: Load QA checklist
+BFF->>ORCH: Get checklist for milestone
+ORCH->>GCS: Fetch governance QA checklist and rules
+GCS-->>ORCH: Checklist + mandatory rules
+ORCH->>EXE: Fetch current QA execution state
+EXE->>READDB: Query QA execution responses
+READDB-->>EXE: Existing checklist responses
+EXE-->>ORCH: Response
+ORCH-->>BFF: Aggregated checklist
+BFF-->>UI: Show QA checklist
+
+RM->>UI: Complete checklist and submit
+UI->>BFF: Submit QA checklist
+BFF->>ORCH: Start QA completion flow
+ORCH->>EXE: Validate mandatory items and save responses
+EXE->>PRIMARYDB: Insert/Update QA execution
+PRIMARYDB-->>EXE: Save success
+EXE-->>ORCH: Save success
+ORCH->>KAFKA: Publish QAMilestoneUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated milestone state

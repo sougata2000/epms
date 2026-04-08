@@ -1,0 +1,38 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor TM as Team Member
+
+participant UI as Team Execution UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant EXE as Execution Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+TM->>UI: Open assigned WBS items
+UI->>BFF: Load my WBS tasks
+BFF->>ORCH: Get assigned execution items
+ORCH->>EXE: Fetch assigned WBS items
+EXE->>READDB: Query assigned WBS execution items by owner
+READDB-->>EXE: Assigned items
+EXE-->>ORCH: Execution items
+ORCH-->>BFF: Response
+BFF-->>UI: Show assigned tasks
+
+TM->>UI: Update actuals and status
+UI->>BFF: Submit execution update
+BFF->>ORCH: Start execution update flow
+ORCH->>EXE: Save actual start/end/effort/status
+EXE->>PRIMARYDB: Update WBS execution progress
+PRIMARYDB-->>EXE: Save success
+EXE-->>ORCH: Save success
+ORCH->>KAFKA: Publish WBSExecutionUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated execution state

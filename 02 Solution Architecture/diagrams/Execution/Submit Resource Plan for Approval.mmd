@@ -1,0 +1,32 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Resource Tagging UI
+participant BFF as Execution BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RMS as Resource Management Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Click Submit resource plan
+UI->>BFF: Submit tagged resources
+BFF->>ORCH: Start resource plan submission flow
+ORCH->>RMS: Validate tagged resources and overlap
+RMS->>READDB: Query approved overlapping allocations
+READDB-->>RMS: Allocation conflicts / none
+RMS->>PRIMARYDB: Update resource plan status = Pending Resource Manager Approval
+PRIMARYDB-->>RMS: Submission success
+RMS-->>ORCH: Submission success
+ORCH->>ADP: Send notification to Resource Manager
+ORCH->>KAFKA: Publish ResourcePlanSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show pending approval state

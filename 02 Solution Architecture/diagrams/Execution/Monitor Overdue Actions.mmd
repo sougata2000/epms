@@ -1,0 +1,23 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor SYS as System Scheduler
+
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QUERY as Action Query Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+SYS->>ORCH: Trigger overdue action monitoring
+ORCH->>QUERY: Fetch overdue open actions
+QUERY->>READDB: Query open actions where target date < current date
+READDB-->>QUERY: Overdue actions
+QUERY-->>ORCH: Overdue action list
+ORCH->>ADP: Send notifications to assignee / PM as per rule
+ORCH->>KAFKA: Publish OverdueActionDetected Event

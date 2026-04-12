@@ -1,0 +1,48 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as QA Management UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QA as Quality Management Service
+participant GOV as Governance Consumption Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Click Add on QA dashboard
+UI->>BFF: Open QA WBS creation
+BFF->>ORCH: Get QA setup context
+ORCH->>GOV: Get archetype QA metadata
+GOV->>READDB: Read project archetype, <br/>archetype version, QA owner rules
+READDB-->>GOV: Governance metadata
+GOV-->>ORCH: QA owner rule response
+
+ORCH->>QA: Get project execution context
+QA->>READDB: Read project type, <br/>actuals tracking mode, <br/>tagged resources
+READDB-->>QA: Project execution context
+QA-->>ORCH: Context response
+
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show QA WBS creation form
+
+PM->>UI: Enter QA WBS details and Save/Submit
+UI->>BFF: Submit QA WBS element
+BFF->>ORCH: Start QA WBS creation flow
+ORCH->>QA: Create QA WBS element
+QA->>PRIMARYDB: Insert project_qa_wbs
+QA->>PRIMARYDB: Insert project_qa_status_history
+PRIMARYDB-->>QA: Save success
+QA-->>ORCH: QA WBS created
+ORCH->>NS: Notify assigned owner if available
+ORCH->>KAFKA: Publish QAWBSCreated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show QA item on dashboard

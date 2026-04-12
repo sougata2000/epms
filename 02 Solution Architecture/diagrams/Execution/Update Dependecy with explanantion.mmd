@@ -1,0 +1,35 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ASSIGNEE as Assignee
+
+participant UI as Dependency Detail UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant ADP as Service Adapter
+participant DS as Document Service
+participant OT as Opentext
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+ASSIGNEE->>UI: Enter explanation and upload evidence
+UI->>BFF: Submit dependency update
+BFF->>ORCH: Start dependency update flow
+ORCH->>ADP: Upload supporting document
+ADP-->>ORCH: File URL
+ORCH->>DS: Store document
+DS-->>OT: Store document in Opentext
+OT-->>DS: Document stored (ID, URL)
+DS-->>ORCH: Document metadata (ID, URL)
+ORCH->>DEP: Save explanation and document metadata
+DEP->>PRIMARYDB: Update project_dependency (explanation)
+DEP->>PRIMARYDB: Insert project_dependency_document
+PRIMARYDB-->>DEP: Save success
+DEP-->>ORCH: Update saved
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated dependency state

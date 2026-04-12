@@ -1,0 +1,44 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor LEAD as DEQA Lead
+
+participant UI as DEQA Execution UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEQA as DEQA Management Service
+participant ADP as Service Adapter
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+LEAD->>UI: Open assigned DEQA request
+UI->>BFF: Load DEQA execution view
+BFF->>ORCH: Get DEQA execution detail
+ORCH->>DEQA: Fetch assigned WBS IDs <br/>and request data
+DEQA->>READDB: Read deqa_request, deqa_request_item, <br/>deqa_execution_result, <br/>JIRA read-only context if applicable
+READDB-->>DEQA: Execution detail
+DEQA-->>ORCH: Execution response
+ORCH-->>BFF: Response
+BFF-->>UI: Show assigned WBS IDs <br/>and editable DEQA columns
+
+LEAD->>UI: Enter results and submit
+UI->>BFF: Submit DEQA execution
+BFF->>ORCH: Start DEQA execution submit flow
+ORCH->>DEQA: Validate all WBS rows<br/> complete and save result
+DEQA->>PRIMARYDB: Upsert deqa_execution_result
+DEQA->>PRIMARYDB: Update deqa_request_item (completed_flag)
+DEQA->>PRIMARYDB: Update deqa_request <br/>(status = Submitted)
+DEQA->>PRIMARYDB: Insert deqa_status_history
+PRIMARYDB-->>DEQA: Save success
+DEQA-->>ORCH: Execution submitted
+ORCH->>NS: Notify DEQA Manager
+ORCH->>KAFKA: Publish DEQAExecutionSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show submitted state

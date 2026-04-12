@@ -1,0 +1,62 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as GoalAchievementController
+    participant WO as WorkflowOrchestrator
+    participant EC as ExecutionContext
+    participant MAC as MultiAgentCoordinator
+    participant WDS as MultiAgentWorkflowDefinitionService
+    participant AR as AgentRegistry
+    participant IA as IdeationAgent
+    participant SA as ScoringAgent
+    participant PA as PlanningAgent
+    participant FS as FinalConsolidationService
+
+    U->>C: GET /ai/goal-achievement
+
+    C->>WO: handleGoalAchievementFlow(persona, campaignId)
+
+    WO->>EC: Create ExecutionContext
+    Note right of EC: requestId, persona, intent, entityId,\ninputs, toolResults, agentOutputs
+
+    WO->>EC: setIntent("goal_achievement_estimation")
+    WO->>EC: putInput("campaignId", "CMP-101")
+    WO->>EC: putInput("persona", "campaign_moderator")
+
+    WO->>MAC: execute(context)
+
+    MAC->>WDS: getAgentData("goal_achievement_estimation")
+    WDS-->>MAC: ["ideationAgent", "scoringAgent", "planningAgent"]
+
+    loop For each agent in sequence
+        MAC->>AR: getAgent(agentName)
+        AR-->>MAC: CapabilityAgent instance
+
+        alt ideationAgent
+            MAC->>IA: execute(context)
+            IA-->>MAC: AgentResult(ideaCount, highImpactIdeas, ideaObservation)
+            MAC->>EC: putAgentOutput("ideationAgent", result)
+        else scoringAgent
+            MAC->>SA: execute(context)
+            SA-->>MAC: AgentResult(avgIdeaScore, maturityPercent, scoreObservation)
+            MAC->>EC: putAgentOutput("scoringAgent", result)
+        else planningAgent
+            MAC->>PA: execute(context)
+            PA-->>MAC: AgentResult(readinessPercent, planningObservation)
+            MAC->>EC: putAgentOutput("planningAgent", result)
+        end
+    end
+
+    MAC->>FS: synthesize(context)
+    Note right of FS: Reads shared agent outputs from ExecutionContext
+    FS-->>MAC: Final result\n(estimatedGoalAchievementPercent, explanation)
+
+    MAC-->>WO: Final result
+    WO-->>C: Final result
+    C-->>U: JSON response

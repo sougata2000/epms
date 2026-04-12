@@ -1,0 +1,32 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor OWNER as Risk Owner
+
+participant UI as Risk Handling UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant ADP as Service Adapter
+participant NS as Notification Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+OWNER->>UI: Click Convert to Issue
+UI->>BFF: Submit issue conversion
+BFF->>ORCH: Start risk-to-issue flow
+ORCH->>RISK: Update project risk status
+RISK->>PRIMARYDB: Update project_risk (overall_status = Converted to Issue)
+RISK->>PRIMARYDB: Insert project_risk_status_history
+PRIMARYDB-->>RISK: Save success
+RISK-->>ORCH: Risk conversion saved
+ORCH->>ADP: Trigger issue creation integration
+ORCH->>NS: Notify Project Manager
+ORCH->>KAFKA: Publish RiskConvertedToIssue Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show Converted to Issue state

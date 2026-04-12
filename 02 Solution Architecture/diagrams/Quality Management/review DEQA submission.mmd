@@ -1,0 +1,41 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor DQM as DEQA Manager
+
+participant UI as DEQA Review UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEQA as DEQA Management Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+DQM->>UI: Open completed DEQA submission
+UI->>BFF: Load DEQA review detail
+BFF->>ORCH: Get completed DEQA request
+ORCH->>DEQA: Fetch review summary
+DEQA->>READDB: Read deqa_request, <br/>deqa_request_item, deqa_execution_result, <br/>deqa_request_document
+READDB-->>DEQA: Review detail
+DEQA-->>ORCH: Review response
+ORCH-->>BFF: Response
+BFF-->>UI: Show WBS-level <br/>outcomes and overall result
+
+DQM->>UI: Confirm closure
+UI->>BFF: Submit close action
+BFF->>ORCH: Start DEQA close flow
+ORCH->>DEQA: Close DEQA request
+DEQA->>PRIMARYDB: Update deqa_request <br/>(status = Closed / Completed)
+DEQA->>PRIMARYDB: Insert deqa_status_history
+PRIMARYDB-->>DEQA: Save success
+DEQA-->>ORCH: DEQA request closed
+ORCH->>NS: Notify Project Manager
+ORCH->>KAFKA: Publish DEQAClosed Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show final closed state

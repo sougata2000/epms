@@ -1,0 +1,31 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Project Closure Detail UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant NS as Notification Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Complete checklist and click Submit
+UI->>BFF: Submit closure package
+BFF->>ORCH: Start closure submission flow
+ORCH->>CLS: Validate checklist and submit
+CLS->>PRIMARYDB: Update project_closure <br/>(status = Submitted for CoE Review, <br/>pm_comments)
+CLS->>PRIMARYDB: Update project_closure_checklist_response
+CLS->>PRIMARYDB: Insert project_closure_status_history
+PRIMARYDB-->>CLS: Save success
+CLS-->>ORCH: Closure package submitted
+ORCH->>NS: Notify CoE Head
+ORCH->>KAFKA: Publish ClosureSubmittedToCoE Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show submitted for CoE review state

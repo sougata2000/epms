@@ -1,0 +1,42 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor QM as QA Manager
+actor PM as Project Manager
+
+participant UI as QA Review UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QA as Quality Management Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+QM->>UI: Open submitted QA item
+UI->>BFF: Load QA submission
+BFF->>ORCH: Get QA review details
+ORCH->>QA: Fetch QA review view
+QA->>READDB: Read project_qa_wbs, <br/>project_qa_execution,<br/> project_qa_checklist_execution,<br/>project_qa_wbs_document
+READDB-->>QA: QA submission detail
+QA-->>ORCH: Review response
+ORCH-->>BFF: Response
+BFF-->>UI: Show completed checklist <br/>and outcome
+
+QM->>UI: Approve completion
+UI->>BFF: Submit QA completion approval
+BFF->>ORCH: Start QA completion flow
+ORCH->>QA: Mark QA task complete
+QA->>PRIMARYDB: Update project_qa_wbs (qa_status = Closed)
+QA->>PRIMARYDB: Insert project_qa_status_history
+PRIMARYDB-->>QA: Save success
+QA-->>ORCH: QA task completed
+ORCH->>NS: Notify PM and QA Member
+ORCH->>KAFKA: Publish QACompleted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show completed QA state

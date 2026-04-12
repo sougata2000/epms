@@ -1,0 +1,51 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor OWNER as Release Manager
+
+participant UI as QA Checklist UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QA as Quality Management Service
+participant GOV as Governance Consumption Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+OWNER->>UI: Open assigned QA item
+UI->>BFF: Load QA checklist
+BFF->>ORCH: Get checklist context
+
+ORCH->>GOV: Fetch archetype QA checklist
+GOV->>READDB: Read governance <br/>checklist or cache lookup
+READDB-->>GOV: Checklist items
+GOV-->>ORCH: Checklist response
+
+ORCH->>QA: Fetch QA item state
+QA->>READDB: Read project_qa_wbs, <br/>project_qa_execution, <br/>project_qa_checklist_execution
+READDB-->>QA: QA item detail
+QA-->>ORCH: Detail response
+
+ORCH-->>BFF: Response
+BFF-->>UI: Show checklist and assignee view
+
+OWNER->>UI: Complete checklist,<br/> add comments, <br/>select Pass/Fail, Submit
+UI->>BFF: Submit QA outcome
+BFF->>ORCH: Start QA outcome flow
+ORCH->>QA: Create/update QA execution
+QA->>PRIMARYDB: Upsert project_qa_execution
+QA->>PRIMARYDB: Upsert project_qa_checklist_execution
+QA->>PRIMARYDB: Update project_qa_wbs (qa_status <br/>= Pass/Fail or Submitted for Approval)
+QA->>PRIMARYDB: Insert project_qa_status_history
+PRIMARYDB-->>QA: Save success
+QA-->>ORCH: QA outcome saved
+ORCH->>NS: Notify Project Manager / QA Manager
+ORCH->>KAFKA: Publish QAOutcomeSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated QA status

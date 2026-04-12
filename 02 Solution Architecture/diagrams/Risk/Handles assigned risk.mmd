@@ -1,0 +1,48 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor OWNER as Risk Owner
+
+participant UI as Risk Handling UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant ADP as Service Adapter
+Participant DS as Opentext 
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+OWNER->>UI: Open assigned risk
+UI->>BFF: Load risk detail
+BFF->>ORCH: Get risk handling detail
+ORCH->>RISK: Fetch assigned risk
+RISK->>READDB: Read project_risk, project_risk_document
+READDB-->>RISK: Risk detail
+RISK-->>ORCH: Detail response
+ORCH-->>BFF: Response
+BFF-->>UI: Show read-only definition <br/>+ editable handling fields
+
+OWNER->>UI: Enter mitigation, upload proof, <br/>and click Close
+UI->>BFF: Submit close action
+BFF->>ORCH: Start risk closure flow
+ORCH->>ADP: Upload supporting document
+ADP->>DS: Upload file
+DS-->>ADP: File URL
+ADP-->>ORCH: File URL
+ORCH->>RISK: Save handling and close risk
+RISK->>PRIMARYDB: Update project_risk <br/>(mitigation_notes, <Br/>overall_status = Closed, <br/>actual_closure_date)
+RISK->>PRIMARYDB: Insert project_risk_document
+RISK->>PRIMARYDB: Insert project_risk_status_history
+PRIMARYDB-->>RISK: Save success
+RISK-->>ORCH: Risk closed
+ORCH->>NS: Notify Project Manager
+ORCH->>KAFKA: Publish RiskClosed Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show Closed state

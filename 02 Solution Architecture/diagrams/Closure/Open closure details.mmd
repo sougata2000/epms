@@ -1,0 +1,40 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Project Closure Detail UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant ADM as Closure Administration Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open eligible project for closure
+UI->>BFF: Load closure detail
+BFF->>ORCH: Start closure detail flow
+
+ORCH->>CLS: Fetch project closure context
+CLS->>READDB: Read project master, <br/>archetype, WBS close eligibility
+READDB-->>CLS: Project context
+CLS-->>ORCH: Project closure context
+
+ORCH->>ADM: Fetch closure checklist by archetype
+ADM->>READDB: Read closure_checklist_master, <br/>closure_checklist_archetype_map
+READDB-->>ADM: Checklist mapping
+ADM-->>ORCH: Checklist response
+
+ORCH->>CLS: Create/update closure draft if needed
+CLS->>PRIMARYDB: Insert/Update project_closure
+CLS->>PRIMARYDB: Insert/Update <br/>project_closure_checklist_response
+PRIMARYDB-->>CLS: Draft save success
+CLS-->>ORCH: Draft ready
+
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show prefilled project details and checklist

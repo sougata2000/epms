@@ -1,0 +1,58 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor COE as CoE Head
+
+participant UI as CoE Closure Review UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+COE->>UI: Open CoE closure queue item
+UI->>BFF: Load closure request
+BFF->>ORCH: Get CoE review detail
+ORCH->>CLS: Fetch closure review view
+CLS->>READDB: Read project_closure, project_closure_checklist_response, <br/>project_closure_review
+READDB-->>CLS: Closure review detail
+CLS-->>ORCH: Review response
+ORCH-->>BFF: Response
+BFF-->>UI: Show PM-submitted closure in read-only mode
+
+alt CoE Approves
+    COE->>UI: Approve closure
+    UI->>BFF: Submit CoE approval
+    BFF->>ORCH: Start CoE approval flow
+    ORCH->>CLS: Approve closure to Governance stage
+    CLS->>PRIMARYDB: Insert project_closure_review (COE approve)
+    CLS->>PRIMARYDB: Update project_closure <br/>(status = Submitted for Governance Review)
+    CLS->>PRIMARYDB: Insert project_closure_status_history
+    PRIMARYDB-->>CLS: Save success
+    CLS-->>ORCH: CoE approval success
+    ORCH->>NS: Notify Governance Head
+    ORCH->>KAFKA: Publish ClosureSubmittedToGovernance Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show submitted for <br/>Governance review state
+else CoE Sends Back
+    COE->>UI: Send Back closure
+    UI->>BFF: Submit send back
+    BFF->>ORCH: Start CoE send back flow
+    ORCH->>CLS: Return closure to PM
+    CLS->>PRIMARYDB: Insert project_closure_review (COE send back)
+    CLS->>PRIMARYDB: Update project_closure (status = Sent Back)
+    CLS->>PRIMARYDB: Insert project_closure_status_history
+    PRIMARYDB-->>CLS: Save success
+    CLS-->>ORCH: Send back success
+    ORCH->>NS: Notify Project Manager
+    ORCH->>KAFKA: Publish ClosureSentBackByCoE Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show sent back state
+end

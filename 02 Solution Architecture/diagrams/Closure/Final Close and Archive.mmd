@@ -1,0 +1,41 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor SYS as System
+
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant ARC as Closure Archive Service
+participant ADP as Service Adapter
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+SYS->>ORCH: Trigger final close processing <br/>after Governance approval
+ORCH->>CLS: Fetch final closure context
+CLS->>READDB: Read project_closure <br/>and project context
+READDB-->>CLS: Closure context
+CLS-->>ORCH: Context response
+
+ORCH->>ADP: Fetch risk archive reference, <br/>CR archive reference, QA archive reference,<br/> financial snapshot
+ADP-->>ORCH: Archive source references
+
+ORCH->>ARC: Finalize closure archive
+ARC->>PRIMARYDB: Insert project_closure_archive
+ARC->>PRIMARYDB: Insert project_closure_report
+PRIMARYDB-->>ARC: Archive success
+ARC-->>ORCH: Final archival completed
+
+ORCH->>CLS: Lock project and finalize closure metadata
+CLS->>PRIMARYDB: Update project_closure (final_closed_at)
+PRIMARYDB-->>CLS: Final close success
+CLS-->>ORCH: Closure finalization done
+
+ORCH->>NS: Notify PM and CoE Head
+ORCH->>KAFKA: Publish ProjectClosedAndArchived Event

@@ -1,0 +1,58 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor GOV as Governance Head
+
+participant UI as Governance Closure Review UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+GOV->>UI: Open Governance closure queue item
+UI->>BFF: Load closure request
+BFF->>ORCH: Get Governance review detail
+ORCH->>CLS: Fetch closure review view
+CLS->>READDB: Read project_closure, <br/>project_closure_checklist_response, <br/>project_closure_review
+READDB-->>CLS: Closure review detail
+CLS-->>ORCH: Review response
+ORCH-->>BFF: Response
+BFF-->>UI: Show CoE-approved closure in read-only mode
+
+alt Governance Approves
+    GOV->>UI: Approve closure
+    UI->>BFF: Submit Governance approval
+    BFF->>ORCH: Start final approval flow
+    ORCH->>CLS: Approve closure and trigger final close
+    CLS->>PRIMARYDB: Insert project_closure_review <br/>(Governance approve)
+    CLS->>PRIMARYDB: Update project_closure (status = Closed)
+    CLS->>PRIMARYDB: Insert project_closure_status_history
+    PRIMARYDB-->>CLS: Save success
+    CLS-->>ORCH: Governance approval success
+    ORCH->>KAFKA: Publish ClosureFinalApproved Event
+    ORCH->>NS: Notify PM and CoE Head
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show closed state
+else Governance Sends Back
+    GOV->>UI: Send Back closure
+    UI->>BFF: Submit send back
+    BFF->>ORCH: Start Governance send back flow
+    ORCH->>CLS: Return closure to PM
+    CLS->>PRIMARYDB: Insert project_closure_review <br/>(Governance send back)
+    CLS->>PRIMARYDB: Update project_closure (status = Sent Back)
+    CLS->>PRIMARYDB: Insert project_closure_status_history
+    PRIMARYDB-->>CLS: Save success
+    CLS-->>ORCH: Send back success
+    ORCH->>NS: Notify PM
+    ORCH->>KAFKA: Publish ClosureSentBackByGovernance Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show sent back state
+end

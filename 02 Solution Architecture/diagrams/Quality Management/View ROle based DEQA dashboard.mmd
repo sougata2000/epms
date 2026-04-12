@@ -1,0 +1,33 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+actor QM as QA Manager
+actor DQM as DEQA Manager
+actor LEAD as DEQA Lead
+
+participant UI as QA Dashboard UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant QA as Quality Management Service
+participant DEQA as DEQA Management Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open QA dashboard
+UI->>BFF: Load role-based QA worklist
+BFF->>ORCH: Get worklist by role
+ORCH->>QA: Fetch internal QA records by role/status
+QA->>READDB: Read project_qa_wbs
+READDB-->>QA: Internal QA rows
+ORCH->>DEQA: Fetch DEQA records by role/status
+DEQA->>READDB: Read deqa_request
+READDB-->>DEQA: DEQA rows
+DEQA-->>ORCH: DEQA worklist response
+QA-->>ORCH: QA worklist response
+ORCH-->>BFF: Aggregated role-specific response
+BFF-->>UI: Show role-relevant records and CTAs

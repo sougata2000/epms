@@ -1,0 +1,34 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Add Dependency UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant REF as Dependency Reference Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Enter dependency details and click Submit
+UI->>BFF: Submit new dependency
+BFF->>ORCH: Start dependency creation flow
+ORCH->>REF: Validate depending/dependent items and dependency type
+REF->>READDB: Read WBS / Action / Decision references
+READDB-->>REF: Reference validation result
+REF-->>ORCH: Validation success
+ORCH->>DEP: Create dependency
+DEP->>PRIMARYDB: Insert project_dependency (status = Open)
+DEP->>PRIMARYDB: Insert project_dependency_status_history (Open)
+PRIMARYDB-->>DEP: Save success
+DEP-->>ORCH: Dependency created
+ORCH->>KAFKA: Publish DependencyCreated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show dependency created state

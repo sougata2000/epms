@@ -1,0 +1,34 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor RM as Risk Manager
+
+participant UI as Risk Governance UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant GOV as Risk Governance Consumption Service
+participant NS as Notification Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+RM->>UI: Approve category request <br/>/ maintain master risk mapping
+UI->>BFF: Submit governance changes
+BFF->>ORCH: Start risk governance flow
+
+ORCH->>RISK: Update category request decision
+RISK->>PRIMARYDB: Update risk_category_request
+PRIMARYDB-->>RISK: Save success
+
+ORCH->>GOV: Save archetype risk mapping<br/>/ master category updates
+GOV-->>ORCH: Governance metadata updated
+
+ORCH->>NS: Notify Project Manager <br/>if request reviewed
+ORCH->>KAFKA: Publish RiskGovernanceUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show governance update state

@@ -1,0 +1,56 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor DQM as DEQA Manager
+
+participant UI as DEQA Approval UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEQA as DEQA Management Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+DQM->>UI: Open DEQA request
+UI->>BFF: Load DEQA request detail
+BFF->>ORCH: Get DEQA request view
+ORCH->>DEQA: Fetch request details
+DEQA->>READDB: Read deqa_request, deqa_request_item, <br/>deqa_request_checklist, <br/>deqa_request_document
+READDB-->>DEQA: Request detail
+DEQA-->>ORCH: View response
+ORCH-->>BFF: Response
+BFF-->>UI: Show request and scheduling fields
+
+alt Approve and assign lead
+    DQM->>UI: Approve request and assign DEQA lead
+    UI->>BFF: Submit approval
+    BFF->>ORCH: Start DEQA approval flow
+    ORCH->>DEQA: Approve request and assign lead
+    DEQA->>PRIMARYDB: Update deqa_request (status = Ongoing,<br/> lead assigned, schedule saved)
+    DEQA->>PRIMARYDB: Insert deqa_status_history
+    PRIMARYDB-->>DEQA: Save success
+    DEQA-->>ORCH: Approval success
+    ORCH->>NS: Notify DEQA Lead
+    ORCH->>KAFKA: Publish DEQARequestApproved Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show approved/ongoing state
+else Send Back
+    DQM->>UI: Send back request
+    UI->>BFF: Submit send back
+    BFF->>ORCH: Start send back flow
+    ORCH->>DEQA: Update request to Sent Back
+    DEQA->>PRIMARYDB: Update deqa_request <br/>(status = Sent Back)
+    DEQA->>PRIMARYDB: Insert deqa_status_history
+    PRIMARYDB-->>DEQA: Save success
+    DEQA-->>ORCH: Send back success
+    ORCH->>NS: Notify Project Manager
+    ORCH->>KAFKA: Publish DEQARequestSentBack Event
+    ORCH-->>BFF: Success
+    BFF-->>UI: Show sent back state
+end

@@ -1,0 +1,33 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ASSIGNEE as Assignee
+
+participant UI as Dependency Detail UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant ADP as Service Adapter
+participant NS as Notification Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ASSIGNEE->>UI: Submit closure
+UI->>BFF: Close dependency
+BFF->>ORCH: Start closure flow
+ORCH->>DEP: Validate explanation and close dependency
+DEP->>PRIMARYDB: Update project_dependency (status = Closed, actual_closure_date)
+DEP->>PRIMARYDB: Insert project_dependency_status_history (Closed)
+PRIMARYDB-->>DEP: Save success
+DEP-->>ORCH: Dependency closed
+ORCH->>ADP: Notify PM / assignor
+ADP->>NS: Send notification
+NS-->>ADP: Notification sent
+ORCH->>KAFKA: Publish DependencyClosed Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show Closed state

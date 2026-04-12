@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Project Closure UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant CLS as Project Closure Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open Project Closure landing page
+UI->>BFF: Load eligible projects
+BFF->>ORCH: Get closure-eligible worklist
+ORCH->>CLS: Fetch eligible projects for PM
+CLS->>READDB: Read project master + <br/>WBS completion aggregate + PM assignment
+READDB-->>CLS: Eligible project list
+CLS-->>ORCH: Worklist response
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show eligible projects only

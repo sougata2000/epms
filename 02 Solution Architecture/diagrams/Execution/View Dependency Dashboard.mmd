@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Dependency Management UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open Dependency Management landing page
+UI->>BFF: Load project dependency list
+BFF->>ORCH: Get project dependencies
+ORCH->>DEP: Fetch project dependency list
+DEP->>READDB: Read project_dependency
+READDB-->>DEP: Dependency list
+DEP-->>ORCH: Project dependency response
+ORCH-->>BFF: Aggregated response
+BFF-->>UI: Show dependency list

@@ -1,0 +1,47 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as DEQA Request UI
+participant BFF as Quality Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEQA as DEQA Management Service
+participant ADP as Service Adapter
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open DEQA request creation
+UI->>BFF: Load eligible WBS IDs
+BFF->>ORCH: Get DEQA-eligible WBS list
+ORCH->>DEQA: Fetch eligible completed WBS IDs
+DEQA->>READDB: Read completed WBS, previously <br/>submitted DEQA WBS, and <br/>change-linked restricted WBS
+READDB-->>DEQA: Eligible WBS IDs
+DEQA-->>ORCH: Eligible list
+ORCH-->>BFF: Response
+BFF-->>UI: Show selectable WBS IDs
+
+PM->>UI: Enter request details and submit
+UI->>BFF: Submit DEQA request
+BFF->>ORCH: Start DEQA request creation flow
+ORCH->>ADP: Upload supporting document if any
+ADP-->>ORCH: File URL
+ORCH->>DEQA: Create DEQA request
+DEQA->>PRIMARYDB: Insert deqa_request
+DEQA->>PRIMARYDB: Insert deqa_request_item
+DEQA->>PRIMARYDB: Insert deqa_request_checklist
+DEQA->>PRIMARYDB: Insert deqa_request_document
+DEQA->>PRIMARYDB: Insert deqa_status_history
+PRIMARYDB-->>DEQA: Save success
+DEQA-->>ORCH: Request created
+ORCH->>NS: Notify DEQA Manager
+ORCH->>KAFKA: Publish DEQARequestSubmitted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show submitted request state

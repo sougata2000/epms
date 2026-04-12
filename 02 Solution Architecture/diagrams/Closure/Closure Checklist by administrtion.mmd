@@ -1,0 +1,37 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+
+participant UI as Project Closure Admin UI
+participant BFF as Project Closure BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant ADM as Closure Administration Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ADMIN->>UI: Open Project Closure Admin
+UI->>BFF: Load checklist catalogue
+BFF->>ORCH: Get closure checklist admin view
+ORCH->>ADM: Fetch checklist catalogue and mappings
+ADM->>PRIMARYDB: Read closure_checklist_master,<br/> closure_checklist_archetype_map
+PRIMARYDB-->>ADM: Checklist config
+ADM-->>ORCH: Admin response
+ORCH-->>BFF: Response
+BFF-->>UI: Show checklist catalogue and mappings
+
+ADMIN->>UI: Update archetype mapping and submit
+UI->>BFF: Save checklist mapping
+BFF->>ORCH: Start admin save flow
+ORCH->>ADM: Save closure checklist mapping
+ADM->>PRIMARYDB: Insert/Update closure_checklist_archetype_map
+PRIMARYDB-->>ADM: Save success
+ADM-->>ORCH: Mapping saved
+ORCH->>KAFKA: Publish ClosureChecklistConfigUpdated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show saved configuration

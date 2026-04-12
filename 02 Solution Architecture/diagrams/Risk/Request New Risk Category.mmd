@@ -1,0 +1,31 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+actor RM as Risk Manager
+
+participant UI as Risk Category Request UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant NS as Notification Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Submit new risk category request
+UI->>BFF: Submit category request
+BFF->>ORCH: Start category request flow
+ORCH->>RISK: Create category request
+RISK->>PRIMARYDB: Insert risk_category_request <br/>(status = Risk Under Review)
+RISK->>PRIMARYDB: Insert project_risk_status_history <br/>(if linked draft risk exists)
+PRIMARYDB-->>RISK: Save success
+RISK-->>ORCH: Request created
+ORCH->>NS: Notify Risk Manager and owner
+ORCH->>KAFKA: Publish RiskCategoryRequested Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show Risk Under Review state

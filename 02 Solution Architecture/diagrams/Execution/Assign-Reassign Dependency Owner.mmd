@@ -1,0 +1,34 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Dependency Detail UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Assign or change assignee
+UI->>BFF: Submit assignee update
+BFF->>ORCH: Start owner assignment flow
+ORCH->>DEP: Validate dependency is not closed
+DEP->>READDB: Read project_dependency
+READDB-->>DEP: Current dependency state
+DEP-->>ORCH: Validation success
+ORCH->>DEP: Save assignee update
+DEP->>PRIMARYDB: Update project_dependency (assignee_user_id, assigned_date)
+PRIMARYDB-->>DEP: Save success
+DEP-->>ORCH: Assignment success
+ORCH->>ADP: Notify new assignee
+ORCH->>KAFKA: Publish DependencyAssigned Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated assignee

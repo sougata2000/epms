@@ -1,0 +1,238 @@
+flowchart TB
+
+%%========================
+%% CHANNELS / USERS
+%%=========================
+subgraph CH["Channels / Users"]
+    U1["Campaign Moderator"]
+    U2["Idea Submitter"]
+    U3["Project Manager"]
+    U4["Evaluator"]
+    U5["Governance / CoE"]
+    U6["External / Enterprise Users"]
+    UI["EPMS Web / Mobile / Teams"]
+end
+
+%% =========================
+%% ACCESS LAYER
+%% =========================
+subgraph ACC["Access Layer"]
+    APIG["API Gateway"]
+    BFF["BFF / Channel Adapter"]
+    IAM["Entra ID / JWT / RBAC"]
+    CACHE["Response / Context Cache"]
+end
+
+%% =========================
+%% AI CONTROL PLANE
+%% =========================
+subgraph AICP["AI Control Plane"]
+    PS["Prompt Service"]
+    MG["Model Gateway"]
+    GS["Guardrails Service"]
+    CM["Session / Context Manager"]
+    AUD["Audit / Observability"]
+end
+
+%% =========================
+%% WORKFLOW / COORDINATION
+%% =========================
+subgraph ORCH["Execution Orchestration Layer"]
+    WO["Workflow Orchestrator<br/>(Deterministic Flow Sequencing)"]
+    MAC["Multi-Agent Coordinator<br/>(only for cross-capability flows)"]
+    HITL["Approval Policy / Human-in-the-Loop Gate"]
+end
+
+%% =========================
+%% CAPABILITY AGENT LAYER
+%% =========================
+subgraph AG["Capability Agent Layer"]
+    IA["Ideation Agent"]
+    DA["Demand Agent"]
+    PA["Planning Agent"]
+    EA["Execution Agent"]
+    GA["Governance Agent"]
+    RA["Risk Agent"]
+    SA["Scoring / Evaluation Agent"]
+end
+
+%% =========================
+%% MCP / TOOL LAYER
+%% =========================
+subgraph MCP["MCP + Policy-Gated Tool Layer"]
+    TR["Tool Registry"]
+    PE["Policy Engine / Tool Authorization"]
+    TX["Tool Execution Runtime"]
+end
+
+%%=========================
+%% BUSINESS / INTEGRATION
+%%=========================
+subgraph BIZ["Business Services / Integration Services"]
+    IDEASVC["Ideation Service"]
+    DEMSVC["Demand Service"]
+    PLANSVC["Planning Service"]
+    EXESVC["Execution Service"]
+    GOVSVC["Governance Service"]
+    RISKSVC["Risk Service"]
+    SCORESVC["Scoring Engine"]
+    INTSVC["Integration Adapters"]
+end
+
+%% =========================
+%% SAAS / EXTERNAL
+%% =========================
+subgraph EXT["SaaS / External Systems"]
+    JIRA["JIRA"]
+    SAP["SAP / HRMS"]
+    ZD["Zendesk"]
+    DOCEXT["External Docs / Sites"]
+end
+
+%% =========================
+%% KNOWLEDGE / RAG
+%% =========================
+subgraph KNOW["Knowledge / Retrieval Layer"]
+    RAGI["RAG Ingestion Pipeline<br/>(parse, transform, chunk, embed, index)"]
+    VDB["Vector DB / pgvector"]
+    DOCS["Document Storage"]
+    PRDB["Prompt Registry DB"]
+end
+
+%% =========================
+%% OPERATIONAL DATA
+%% =========================
+subgraph DATA["Operational Data Layer"]
+    DB["EPMS Primary DB"]
+    RR["Read Replica / Read APIs"]
+    EVT["Event Bus / Message Broker"]
+end
+
+%% =========================
+%% USER FLOW
+%% =========================
+U1 --> UI
+U2 --> UI
+U3 --> UI
+U4 --> UI
+U5 --> UI
+U6 --> UI
+
+UI --> APIG
+APIG --> IAM
+APIG --> BFF
+BFF --> CACHE
+BFF --> PS
+BFF --> CM
+BFF --> WO
+
+%% CONTROL PLANE LINKS
+%% =========================
+PS --> PRDB
+WO --> GS
+WO --> MG
+WO --> AUD
+WO --> CM
+
+%% =========================
+%% WORKFLOW TO AGENTS
+%% =========================
+WO --> IA
+WO --> DA
+WO --> PA
+WO --> EA
+WO --> GA
+WO --> RA
+WO --> SA
+
+%% =========================
+%% MULTI-AGENT
+%% =========================
+WO --> MAC
+MAC --> IA
+MAC --> PA
+MAC --> EA
+MAC --> GA
+MAC --> RA
+MAC --> SA
+
+%% =========================
+%% AGENTS TO MCP
+%% =========================
+IA --> TR
+DA --> TR
+PA --> TR
+EA --> TR
+GA --> TR
+RA --> TR
+SA --> TR
+
+TR --> PE
+PE --> TX
+
+%% =========================
+%% MCP TO SERVICES
+%% =========================
+TX --> IDEASVC
+TX --> DEMSVC
+TX --> PLANSVC
+TX --> EXESVC
+TX --> GOVSVC
+TX --> RISKSVC
+TX --> SCORESVC
+TX --> INTSVC
+
+%% =========================
+%% INTEGRATIONS
+%% =========================
+INTSVC --> JIRA
+INTSVC --> SAP
+INTSVC --> ZD
+INTSVC --> DOCEXT
+
+%% =========================
+%% DATA PATHS
+%% =========================
+IDEASVC --> RR
+DEMSVC --> RR
+PLANSVC --> RR
+EXESVC --> RR
+GOVSVC --> RR
+RISKSVC --> RR
+
+IDEASVC --> DB
+DEMSVC --> DB
+PLANSVC --> DB
+EXESVC --> DB
+GOVSVC --> DB
+RISKSVC --> DB
+
+%% =========================
+%% KNOWLEDGE PATHS
+%% =========================
+DOCS --> RAGI
+DB --> RAGI
+RAGI --> VDB
+
+TX --> VDB
+
+%% =========================
+%% HITL
+%% =========================
+WO --> HITL
+MAC --> HITL
+HITL --> GOVSVC
+HITL --> EXESVC
+HITL --> DEMSVC
+
+%% =========================
+%% EVENT-DRIVEN AI
+%% =========================
+IDEASVC --> EVT
+DEMSVC --> EVT
+PLANSVC --> EVT
+EXESVC --> EVT
+GOVSVC --> EVT
+RISKSVC --> EVT
+
+EVT --> WO

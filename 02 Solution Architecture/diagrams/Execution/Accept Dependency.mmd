@@ -1,0 +1,28 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor ASSIGNEE as Assignee
+
+participant UI as Assignee Dependency UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+ASSIGNEE->>UI: Click Accept and confirm
+UI->>BFF: Submit accept action
+BFF->>ORCH: Start accept flow
+ORCH->>DEP: Accept dependency
+DEP->>PRIMARYDB: Update project_dependency (status = Active)
+DEP->>PRIMARYDB: Insert project_dependency_status_history (Active)
+PRIMARYDB-->>DEP: Save success
+DEP-->>ORCH: Dependency accepted
+ORCH->>KAFKA: Publish DependencyAccepted Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show Active state

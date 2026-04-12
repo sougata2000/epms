@@ -1,0 +1,35 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Risk Management UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant NS as Notification Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Assign owner to unassigned risk
+UI->>BFF: Submit owner assignment
+BFF->>ORCH: Start risk owner assignment flow
+ORCH->>RISK: Validate risk and owner
+RISK->>READDB: Read project_risk
+READDB-->>RISK: Risk state
+RISK-->>ORCH: Validation success
+ORCH->>RISK: Save owner assignment
+RISK->>PRIMARYDB: Update project_risk (risk_owner_user_id, overall_status = Assigned)
+RISK->>PRIMARYDB: Insert project_risk_status_history
+PRIMARYDB-->>RISK: Save success
+RISK-->>ORCH: Assignment success
+ORCH->>NS: Notify risk owner
+ORCH->>KAFKA: Publish RiskAssigned Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show updated assigned state

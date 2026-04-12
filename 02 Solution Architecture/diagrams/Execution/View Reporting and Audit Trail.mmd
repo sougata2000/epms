@@ -1,0 +1,25 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Dependency Reporting UI
+participant BFF as Dependency Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DEP as Dependency Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM->>UI: Open dependency reporting / audit view
+UI->>BFF: Load dependency reporting
+BFF->>ORCH: Get reporting view
+ORCH->>DEP: Fetch dependency reporting dataset
+DEP->>READDB: Read project_dependency, project_dependency_status_history,<br/> project_dependency_document
+READDB-->>DEP: Reporting data
+DEP-->>ORCH: Reporting response
+ORCH-->>BFF: Response
+BFF-->>UI: Show dependency trail and <br/>closure-ready artefacts

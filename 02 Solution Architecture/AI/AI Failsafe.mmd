@@ -1,0 +1,70 @@
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant BFF as BFF
+    participant WO as Workflow Orchestrator
+    participant PS as Prompt Service
+    participant GI as Guardrails Input Check
+    participant MG as Model Gateway
+    participant L1 as Primary LLM
+    participant L2 as Secondary LLM
+    participant DF as Deterministic Fallback
+    participant GO as Guardrails Output Check
+    participant AP as Approval Policy / HITL
+    participant AUD as Audit / Observability
+
+    U->>BFF: Submit AI request
+    BFF->>WO: Forward request
+    WO->>PS: Build prompt/context
+    PS-->>WO: Prompt ready
+    WO->>GI: Validate input
+
+    alt Input blocked
+        GI-->>WO: Reject / sanitize required
+        WO->>AUD: Log blocked input
+        WO-->>BFF: Safe failure response
+    else Input valid
+        GI-->>WO: OK
+        WO->>MG: Invoke model
+        MG->>L1: Call primary LLM
+
+        alt Primary success
+            L1-->>MG: Response
+        else Primary fails
+            L1-->>MG: Timeout / error
+            MG->>L2: Call secondary LLM
+
+            alt Secondary success
+                L2-->>MG: Response
+            else Secondary fails
+                L2-->>MG: Timeout / error
+                MG->>DF: Build deterministic fallback
+                DF-->>MG: Fallback response
+            end
+        end
+
+        MG-->>WO: Model/fallback response
+        WO->>GO: Validate output
+
+        alt Output unsafe but repairable
+            GO-->>WO: Repaired output
+        else Output unsafe and not repairable
+            GO-->>WO: Block / Manual Review
+            WO->>AUD: Log output policy failure
+            WO-->>BFF: Review required response
+        else Output safe
+            GO-->>WO: OK
+            WO->>AP: Check action policy
+
+            alt Approval required
+                AP-->>WO: Create approval task / wait for HITL
+            else Advisory only
+                AP-->>WO: No approval needed
+            end
+
+            WO->>AUD: Log success / fallback / approval path
+            WO-->>BFF: Final response
+        end
+    end
+
+    BFF-->>U: Response

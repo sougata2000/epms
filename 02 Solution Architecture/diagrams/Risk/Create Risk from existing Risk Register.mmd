@@ -1,0 +1,42 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+autonumber
+actor PM as Project Manager
+
+participant UI as Add Risk UI
+participant BFF as Risk Management BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant RISK as Risk Management Service
+participant GOV as Risk Governance Consumption Service
+participant ADP as Service Adapter
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM->>UI: Open Add Risk and select register-backed risk
+UI->>BFF: Load register-backed risk details
+BFF->>ORCH: Get risk register context
+ORCH->>GOV: Fetch approved risk register options
+GOV->>READDB: Read risk_register_master, archetype risk mapping
+READDB-->>GOV: Risk register data
+GOV-->>ORCH: Register response
+ORCH-->>BFF: Response
+BFF-->>UI: Show risk options and prefilled values
+
+PM->>UI: Enter details and submit
+UI->>BFF: Submit project risk
+BFF->>ORCH: Start project risk creation flow
+ORCH->>RISK: Validate and create project risk
+RISK->>PRIMARYDB: Insert project_risk
+RISK->>PRIMARYDB: Insert project_risk_document
+RISK->>PRIMARYDB: Insert project_risk_status_history
+PRIMARYDB-->>RISK: Save success
+RISK-->>ORCH: Risk created
+ORCH->>KAFKA: Publish ProjectRiskCreated Event
+ORCH-->>BFF: Success
+BFF-->>UI: Show generated Risk ID and success

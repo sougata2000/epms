@@ -1,26 +1,9 @@
-%%Part 1 — Create Project: validate demand, check program, fetch VCF, save draft if needed
-%% 
-%%  1.	Validate Demand ID
-%% 	2.	Check whether a Program already exists for that demand / selected context
-%% 	3.	If program exists:
-%% 	    fetch program details
-%% 	     fetch existing VCF details
-%% 	    continue project creation flow
-%% 	4.	If program does not exist:
-%% 	    open / redirect to program creation flow
-%% 	    save project as DRAFT
-%% 	5.	During creation/update, the orchestrator should coordinate updates to:
-%% 	    main business entity (project, program, vcf)
-%% 	    status master references
-%%	    approval stage / workflow step tables
-
-%% Responsibilities:
-%%		Project Service owns project persistence
-%%		Program Service owns program persistence and program lookup
-%%		VCF Service owns VCF retrieval/update
-%%		Orchestrator coordinates the end-to-end journey and decides the next step
-%%		Status/stage/workflow-step updates should be invoked through the owning service APIs, but the sequence should be driven by the orchestrator
-%%
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
 sequenceDiagram
 autonumber
 actor BP as Business Partner
@@ -28,61 +11,62 @@ participant UI
 participant APIG as API Gateway
 participant IDAM as Azure AD / IDAM
 participant BFF as Initiation BFF
-participant PJO as Project Journey Orchestrator
-participant DS as Demand Service
+%%participant PJO as Project Journey Orchestrator
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant DS as Request::Demand Service
 participant PRS as Program Service
-participant VCF as VCF Service<br/>(::Program)
+participant VCF as VCF Service<br/>(Program)
 participant PS as Project Service
 participant CACHE as Redis Cache
-participant DB as PostgreSQL
-participant BUS as Event Bus
+participant PRIMARY_DB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
 
 BP->>UI: Enter project details <br/>with Demand ID
 UI->>APIG: POST /projects/initiate
 APIG->>IDAM: Authenticate request
 IDAM-->>APIG: Authentication success
 APIG->>BFF: Forward request
-BFF->>PJO: Initiate project <br/>creation journey
+BFF->>ORCH: Initiate project <br/>creation journey
 
-PJO->>DS: Validate Demand ID
+ORCH->>DS: Validate Demand ID
 DS->>CACHE: Check demand cache
 alt Demand cache hit
     CACHE-->>DS: Demand details
 else Demand cache miss
-    DS->>DB: Fetch demand
-    DB-->>DS: Demand details
+    DS->>PRIMARY_DB: Fetch demand
+    PRIMARY_DB-->>DS: Demand details
     DS->>CACHE: Update demand cache
 end
-DS-->>PJO: Demand valid
+DS-->>ORCH: Demand valid
 
-PJO->>PRS: Find program by <br/>Demand ID / context
-PRS->>DB: Query program
+ORCH->>PRS: Find program by <br/>Demand ID / context
+PRS->>PRIMARY_DB: Query program
 alt Program exists
-    DB-->>PRS: Program details
-    PRS-->>PJO: Existing program found
+    PRIMARY_DB-->>PRS: Program details
+    PRS-->>ORCH: Existing program found
 
-    PJO->>VCF: Fetch VCF for Program ID
-    VCF->>DB: Query VCF details
-    DB-->>VCF: VCF details
-    VCF-->>PJO: Existing VCF returned
+    ORCH->>VCF: Fetch VCF for Program ID
+    VCF->>PRIMARY_DB: Query VCF details
+    PRIMARY_DB-->>VCF: VCF details
+    VCF-->>ORCH: Existing VCF returned
 
-    PJO->>PS: Create project linked <br/>to Demand ID <br/>and Program ID
-    PS->>DB: Insert project in <br/>DRAFT/<br/>INITIATED state
-    DB-->>PS: Project ID generated
-    PS-->>PJO: Project created
+    ORCH->>PS: Create project linked <br/>to Demand ID <br/>and Program ID
+    PS->>PRIMARY_DB: Insert project in <br/>DRAFT/<br/>INITIATED state
+    PRIMARY_DB-->>PS: Project ID generated
+    PS-->>ORCH: Project created
 else No program found
-    DB-->>PRS: No program found
-    PRS-->>PJO: Program not found
+    PRIMARY_DB-->>PRS: No program found
+    PRS-->>ORCH: Program not found
 
-    PJO->>PS: Create project in <br/>DRAFT without Program ID
-    PS->>DB: Insert draft project
-    DB-->>PS: Project ID generated
-    PS-->>PJO: Draft project created
+    ORCH->>PS: Create project in <br/>DRAFT without Program ID
+    PS->>PRIMARY_DB: Insert draft project
+    PRIMARY_DB-->>PS: Project ID generated
+    PS-->>ORCH: Draft project created
 
-    PJO-->>BFF: Response with <br/>projectId + action<br/>=CREATE_PROGRAM
+    ORCH-->>BFF: Response with <br/>projectId + action<br/>=CREATE_PROGRAM
     BFF-->>APIG: Response
     APIG-->>UI: Open Program <br/>Creation Flow
 end
 
-PJO->>BUS: Publish ProjectInitiated <br/>/ DraftCreated event
-BUS-->>BFF: Async consumers continue
+ORCH->>KAFKA: Publish ProjectInitiated <br/>/ DraftCreated event
+KAFKA-->>BFF: Async consumers continue

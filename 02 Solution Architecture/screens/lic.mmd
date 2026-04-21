@@ -1,0 +1,14 @@
+
+flowchart LR
+    S[Legacy Databases] --> P[Profiling & Assessment]
+    P --> M[Source to Target Mapping]
+    M --> C[Data Cleansing / Standardization]
+    C --> L[Initial Historical Load]
+    S --> D[CDC Capture]
+    D --> R[Real-Time Replication / Sync]
+    L --> T[Target Domain Database]
+    R --> T
+    T --> Q[Reconciliation & Validation]
+    Q --> U[Parallel Run]
+    U --> X[Controlled Cutover]
+    X --> Z[Legacy Decommission]

@@ -10,16 +10,14 @@ actor PM as Project Manager
 
 participant UI
 participant BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant DEC as Decision Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 PM->>UI: Open decision dashboard
 UI->>BFF: Load decisions
-BFF->>ORCH: Fetch decision list
-ORCH->>DEC: Get decisions
+BFF->>DEC: Get decisions
 DEC->>READDB: Read project_decision
 READDB-->>DEC: Decision list
-DEC-->>ORCH: Response
-ORCH-->>BFF: Response
+DEC-->>BFF: Response
 BFF-->>UI: Show decision list

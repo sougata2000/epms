@@ -1,0 +1,58 @@
+flowchart TB
+
+UI[Web / Mobile UI]
+BFF[BFF]
+ORCH[Journey Orchestrator]
+
+REQS[Request Service]
+INITS[Initiation Service]
+PLANS[Planning Service]
+RESS[Resource Service]
+EXECS[Execution/WBS Service]
+RISKS[Risk Service]
+ACTS[Action Service]
+DEPS[Dependency Service]
+CRS[Change Request Service]
+DECS[Decision Service]
+QAS[Quality Service]
+CLOSES[Closure Service]
+
+NOTIF[Notification Service]
+FILE[File Service]
+JIRA[JIRA Adapter]
+RULES[Rule Engine]
+KAFKA[Kafka]
+
+UI --> BFF
+BFF --> ORCH
+
+ORCH --> REQS
+ORCH --> INITS
+ORCH --> PLANS
+ORCH --> RESS
+ORCH --> EXECS
+ORCH --> RISKS
+ORCH --> ACTS
+ORCH --> DEPS
+ORCH --> CRS
+ORCH --> DECS
+ORCH --> QAS
+ORCH --> CLOSES
+
+ORCH --> RULES
+ORCH --> FILE
+ORCH --> NOTIF
+ORCH --> JIRA
+
+REQS --> KAFKA
+INITS --> KAFKA
+PLANS --> KAFKA
+RESS --> KAFKA
+EXECS --> KAFKA
+RISKS --> KAFKA
+ACTS --> KAFKA
+DEPS --> KAFKA
+CRS --> KAFKA
+DECS --> KAFKA
+QAS --> KAFKA
+CLOSES --> KAFKA

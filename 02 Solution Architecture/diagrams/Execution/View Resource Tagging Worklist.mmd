@@ -10,16 +10,16 @@ actor PM as Project Manager
 
 participant UI as Resource Tagging UI
 participant BFF as Execution BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant RMS as Resource Management Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 PM->>UI: Open Resource Tagging worklist
 UI->>BFF: Load projects in ResourceTagging state
-BFF->>ORCH: Get resource tagging worklist
-ORCH->>RMS: Fetch eligible projects
+BFF->>RMS: Get resource tagging worklist
+%%ORCH->>RMS: Fetch eligible projects
 RMS->>READDB: Query project and resource tagging worklist
 READDB-->>RMS: Project list
-RMS-->>ORCH: Worklist response
-ORCH-->>BFF: Aggregated response
+RMS-->>BFF: Worklist response
+%%ORCH-->>BFF: Aggregated response
 BFF-->>UI: Show worklist with search and CTA

@@ -1,0 +1,132 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor BU as Business User
+    participant UI
+    participant BFF as Request BFF
+    participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+    participant REQ as Request Service
+    participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+    participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+    participant NOTIF as Notification Service
+
+    %% ---------------------------
+    %% STEP 1: SUBMIT REQUEST
+    %% ---------------------------
+    BU ->> UI: Click Submit Request
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: validateRequest(request_id)
+
+    REQ ->> PRIMARYDB: SELECT request (Draft)
+    REQ -->> ORCH: Valid
+
+    ORCH ->> REQ: submitRequest(request_id)
+
+    REQ ->> PRIMARYDB: UPDATE REQUEST (status = Submitted)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (Submitted)
+
+    ORCH ->> KAFKA: Publish "Request Submitted"
+
+    ORCH ->> NOTIF: Notify Demand Manager
+
+    %% ---------------------------
+    %% STEP 2: ASSIGN VERTICAL
+    %% ---------------------------
+    actor DM as Demand Manager
+
+    DM ->> UI: Assign Vertical (DE/SAP/IT)
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: assignVertical(request_id, vertical)
+
+    REQ ->> PRIMARYDB: UPDATE REQUEST (vertical)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (Assigned to Vertical)
+
+    ORCH ->> KAFKA: Publish "Vertical Assigned"
+    ORCH ->> NOTIF: Notify DEBP
+
+    %% ---------------------------
+    %% STEP 3: EVALUATION (ONLY FOR NEW REQUEST)
+    %% ---------------------------
+    actor DEBP
+
+    DEBP ->> UI: Submit Evaluation
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: saveEvaluation()
+
+    REQ ->> PRIMARYDB: INSERT REQUEST_EVALUATION
+    REQ ->> PRIMARYDB: UPDATE REQUEST (status = Evaluated)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (Evaluated)
+
+    ORCH ->> NOTIF: Notify BP Manager
+
+    %% ---------------------------
+    %% STEP 4: APPROVAL
+    %% ---------------------------
+    actor BPM as BP Manager
+
+    BPM ->> UI: Approve Request
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: approveRequest()
+
+    REQ ->> PRIMARYDB: INSERT REQUEST_APPROVAL
+    REQ ->> PRIMARYDB: UPDATE REQUEST (status = Approved for Demand Creation)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (Approved)
+
+    ORCH ->> KAFKA: Publish "Request Approved"
+
+    %% ---------------------------
+    %% STEP 5: DEMAND CREATION (SYSTEM STEP)
+    %% ---------------------------
+
+    ORCH ->> REQ: generateDemandId(request_id)
+
+    REQ ->> PRIMARYDB: INSERT DEMAND (demand_id generated)
+    REQ ->> PRIMARYDB: UPDATE REQUEST (demand_id, status = Demand Created)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (Demand Created)
+
+    ORCH ->> KAFKA: Publish "Demand Created"
+    ORCH ->> NOTIF: Notify Business User + DEBP
+
+    %% ---------------------------
+    %% STEP 6: COE ASSIGNMENT
+    %% ---------------------------
+
+    DEBP ->> UI: Assign CoE
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: assignCoE()
+
+    REQ ->> PRIMARYDB: UPDATE REQUEST (coe)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (CoE Assigned)
+
+    ORCH ->> NOTIF: Notify CoE Team
+
+    %% ---------------------------
+    %% STEP 7: BRD UPLOAD
+    %% ---------------------------
+
+    BU ->> UI: Upload BRD
+    UI ->> BFF: forward
+    BFF ->> ORCH: forward
+
+    ORCH ->> REQ: saveDocumentMetadata()
+
+    REQ ->> PRIMARYDB: INSERT REQUEST_DOCUMENT
+    REQ ->> PRIMARYDB: UPDATE REQUEST (status = BRD Uploaded)
+    REQ ->> PRIMARYDB: INSERT WORKFLOW (BRD Uploaded)
+
+    ORCH ->> NOTIF: Notify CoE + BP

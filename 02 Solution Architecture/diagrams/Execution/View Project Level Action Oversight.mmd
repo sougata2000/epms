@@ -10,16 +10,15 @@ actor PM as Project Manager
 
 participant UI as Action Oversight UI
 participant BFF as Action Management BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant QUERY as Action Query Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 PM->>UI: Open project action oversight
 UI->>BFF: Load open and closed actions
-BFF->>ORCH: Get project oversight view
-ORCH->>QUERY: Fetch project action summary
+BFF->>QUERY: Get project oversight view
+%%ORCH->>QUERY: Fetch project action summary
 QUERY->>READDB: Query open/closed actions for project
 READDB-->>QUERY: Action oversight data
-QUERY-->>ORCH: Oversight response
-ORCH-->>BFF: Response
+QUERY-->>BFF: Response
 BFF-->>UI: Show project-level oversight with latest status

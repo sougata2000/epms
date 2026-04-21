@@ -10,16 +10,16 @@ actor PM as Project Manager
 
 participant UI as Risk Management UI
 participant BFF as Risk Management BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant RISK as Risk Management Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 PM->>UI: Open Risk Management landing page
 UI->>BFF: Load project risks
-BFF->>ORCH: Get project risk list
-ORCH->>RISK: Fetch project risks
+BFF->>RISK: Get project risk list
+%%ORCH->>RISK: Fetch project risks
 RISK->>READDB: Read project_risk
 READDB-->>RISK: Project risk list
-RISK-->>ORCH: Risk list response
-ORCH-->>BFF: Aggregated response
+RISK-->>BFF: Risk list response
+%%ORCH-->>BFF: Aggregated response
 BFF-->>UI: Show project risk list with statuses and actions

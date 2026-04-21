@@ -1,0 +1,25 @@
+C4Context
+title EPMS - System Context
+
+Person(pm, "Project Manager", "Plans, executes, tracks projects")
+Person(coe, "CoE Head", "Approves and governs projects")
+Person(gov, "Governance Head", "Final approvals and oversight")
+Person(rm, "Resource Manager", "Approves resource allocations")
+Person(user, "Team Member", "Executes WBS tasks")
+
+System(epms, "EPMS Platform", "Enterprise Project Management System")
+
+System_Ext(jira, "JIRA", "SDLC execution system")
+System_Ext(sap, "SAP SuccessFactors", "HR & resource master")
+System_Ext(zendesk, "Zendesk", "Support system")
+
+Rel(pm, epms, "Uses")
+Rel(coe, epms, "Approves")
+Rel(gov, epms, "Governs")
+Rel(rm, epms, "Approves resources")
+Rel(user, epms, "Updates tasks")
+
+
+Rel(epms, sap, "Fetch employees")
+Rel(epms, zendesk, "Create / fetch tickets")
+Rel(epms, jira, "Sync WBS / Issues")

@@ -10,16 +10,15 @@ actor PM as Project Manager
 
 participant UI
 participant BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant CR as Change Request Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 PM->>UI: Open CR dashboard
 UI->>BFF: Load CR list
-BFF->>ORCH: Get project CR list
-ORCH->>CR: Fetch CR list
+BFF->>CR: Get project CR list
+%%ORCH->>CR: Fetch CR list
 CR->>READDB: Query CRs by project
 READDB-->>CR: CR list
-CR-->>ORCH: Response
-ORCH-->>BFF: Response
+CR-->>BFF: Response
 BFF-->>UI: Show CR dashboard

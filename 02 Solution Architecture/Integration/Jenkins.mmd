@@ -1,0 +1,68 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+sequenceDiagram
+    autonumber
+    actor USER as EPMS User
+    participant UI as EPMS UI / Dashboard
+    participant KPI as KPI / Reporting Service
+    participant SCH as EPMS Scheduler
+    participant INT as Integration Adapter
+    participant JEN as Jenkins
+    participant DB as EPMS Metrics DB
+    participant CACHE as Redis Cache
+    participant MB as Message Broker
+
+    Note over SCH,INT: Scheduled pull every 30  / 60 minutes or on demand
+
+    SCH->>INT: Trigger Jenkins metrics sync
+    INT->>JEN: GET /api/json
+    JEN-->>INT: Job list
+
+    loop For each configured Jenkins job
+        INT->>JEN: GET job details builds[number,result,duration,timestamp,url]
+        JEN-->>INT: Build summary
+
+        alt New or updated build found
+            INT->>JEN: GET Job build details 
+            JEN-->>INT: Build details
+
+            opt Stage-level details needed
+                INT->>JEN: GET stage details for build
+                JEN-->>INT: Stage status and durations
+            end
+
+            opt Test metrics needed
+                INT->>JEN: GET test metrics 
+                JEN-->>INT: Passed / failed / skipped test summary
+            end
+
+            opt Failure analysis needed
+                INT->>JEN: GET Failure details for failed build
+                JEN-->>INT: Console log
+            end
+
+            INT->>INT: Transform Jenkins payload to EPMS schema
+            INT->>DB: Upsert pipeline run / stage / test / log summary
+            INT->>CACHE: Refresh latest KPI cache
+            INT->>MB: Publish build status event
+        end
+    end
+
+    USER->>UI: Open DevOps / Delivery dashboard
+    UI->>KPI: Request Jenkins KPIs
+    KPI->>CACHE: Get cached KPI summary
+
+    alt Cache hit
+        CACHE-->>KPI: KPI summary
+    else Cache miss
+        KPI->>DB: Query aggregated build / stage / test metrics
+        DB-->>KPI: KPI dataset
+        KPI->>CACHE: Update cache
+    end
+
+    KPI-->>UI: Build health / duration / failure / deployment metrics
+    UI-->>USER: Display dashboard

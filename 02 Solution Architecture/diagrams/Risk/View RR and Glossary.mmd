@@ -10,16 +10,16 @@ actor USER as Any User
 
 participant UI as Risk Register UI
 participant BFF as Risk Management BFF
-participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+%%participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
 participant GOV as Risk Governance Consumption Service
 participant READDB@{ "type": "database", "alias": "EPMS schema"}
 
 USER->>UI: Open Risk Register
 UI->>BFF: Load risk register
-BFF->>ORCH: Get risk register view
-ORCH->>GOV: Fetch approved risk register
+BFF->>GOV: Get risk register view
+%%ORCH->>GOV: Fetch approved risk register
 GOV->>READDB: Read risk_register_master
 READDB-->>GOV: Register data
-GOV-->>ORCH: Register response
-ORCH-->>BFF: Response
+GOV-->>BFF: Register response
+%%ORCH-->>BFF: Response
 BFF-->>UI: Show risk register and glossary

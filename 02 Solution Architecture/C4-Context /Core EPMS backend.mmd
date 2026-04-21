@@ -1,0 +1,50 @@
+C4Component
+  title EPMS - Backend Component Diagram
+
+  Container(bff, "BFF Layer")
+  Component(auth, "Auth Handler", "JWT validation")
+  Component(agg, "Aggregator", "Combines responses")
+
+  Container(orch, "Journey Orchestrator")
+  Component(workflow, "Workflow Engine", "Temporal workflows")
+
+  Container(ms, "Domain Microservices")
+  Component(planning, "Planning Service", "WBS & baseline")
+  Component(exec, "Execution Service", "WBS tracking")
+  Component(risk, "Risk Service", "Risk lifecycle")
+  Component(change, "Change Service", "CR workflow")
+  Component(action, "Action Service", "Action tracking")
+  Component(dep, "Dependency Service", "Dependency tracking")
+  Component(decision, "Decision Service", "Decision framework")
+  Component(qa, "QA Service", "QA & DEQA")
+  Component(closure, "Closure Service", "Project closure")
+
+  Container(integration, "Integration Layer")
+  Component(jira_adapter, "JIRA Adapter", "Webhook + API sync")
+  Component(sap_adapter, "SAP Adapter", "HR data sync")
+
+  Container(ai, "AI Platform")
+  Component(orchestrator, "AI Control Plane", "Prompt + guardrails")
+  Component(vector, "Vector DB", "Embeddings")
+  Component(llm, "LLM", "Inference")
+
+  Rel(auth, agg, "Validates JWT")
+  Rel(agg, workflow, "Aggregates responses")
+  Rel(agg, workflow, "Triggers")
+
+  Rel(workflow, planning, "Calls")
+  Rel(workflow, exec, "Calls")
+  Rel(workflow, change, "Calls")
+
+  Rel(exec, risk, "Reads risks")
+  Rel(exec, dep, "Reads dependencies")
+  Rel(exec, action, "Reads actions")
+
+  Rel(change, jira_adapter, "Triggers CR sync")
+  Rel(exec, jira_adapter, "Sync WBS")
+
+  Rel(planning, sap_adapter, "Fetch users")
+
+  Rel(planning, vector, "Store embeddings")
+  Rel(vector, llm, "Context retrieval")
+  Rel(orchestrator, llm, "Inference")

@@ -1,0 +1,50 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor BU as Business User
+participant UI
+participant BFF as Request BFF
+
+participant REDIS as Cache Redis
+participant AIWF as AI Workflow Service
+participant AICP as AI Control Plane
+participant PromptREDIS as Cache Prompt Redis
+participant AIP as AI Pipeline
+participant LLM as LLM
+
+BU ->> UI: Click "Get AI Recommendation"
+UI ->> BFF: Generate AI summary for request_id
+
+
+
+BFF ->> REDIS: Check AI summary cache(input_hash)
+alt Cache Hit
+    REDIS -->> BFF: Cached AI summary
+    BFF -->> UI: Render AI summary
+else Cache Miss
+    BFF ->> AIWF: Generate <br/>recommendation(request payload)
+
+    AIWF ->> AICP: Resolve prompt, <br/>model, guardrails, token policy
+    AICP ->> PromptREDIS: Get prompt <br/>template(request_type, application_id)
+    PromptREDIS -->> AICP: Prompt template  
+    AICP -->> AIWF: Approved AI config
+
+    AIWF ->> AIP: Build prompt/context <br/>from request payload
+    AIP ->> LLM: Generate summary/<br/>recommendation
+    LLM -->> AIP: Raw response
+    AIP -->> AIWF: Normalized AI summary
+
+    AIWF -->> BFF: AI summary
+
+    BFF ->> REDIS: Cache AI summary<br/>(input_hash, summary)
+    AIWF -->> BFF: Save success
+
+    %%BFF ->> KAFKA: Publish AI summary generated event
+    BFF -->> UI: Render AI summary
+end

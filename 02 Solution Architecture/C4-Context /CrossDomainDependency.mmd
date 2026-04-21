@@ -1,0 +1,88 @@
+flowchart LR
+
+REQ[Request Management]
+INIT[Project Initiation]
+PLAN[Project Planning]
+RES[Resource Management]
+EXEC[Execution Core / WBS]
+RISK[Risk Management]
+ACT[Action Management]
+DEP[Dependency Management]
+CR[Change Request Management]
+DEC[Decision Management]
+QA[Quality Management]
+CLOSE[Closure Management]
+GOV[Governance / Archetype / Rules]
+REF[Reference / HRMS / Masters]
+NOTIF[Notification Service]
+FILE[Document / File Service]
+JIRA[JIRA Adapter]
+TS[Timesheet]
+
+REQ --> REF
+REQ --> NOTIF
+REQ --> FILE
+REQ --> INIT
+
+INIT --> GOV
+INIT --> REF
+INIT --> FILE
+INIT --> NOTIF
+INIT --> JIRA
+INIT --> PLAN
+
+PLAN --> GOV
+PLAN --> REF
+PLAN --> NOTIF
+PLAN --> RES
+PLAN --> EXEC
+
+RES --> REF
+RES --> TS
+RES --> NOTIF
+RES --> EXEC
+
+EXEC --> RES
+EXEC --> RISK
+EXEC --> ACT
+EXEC --> DEP
+EXEC --> DEC
+EXEC --> QA
+EXEC --> CR
+
+RISK --> GOV
+RISK --> NOTIF
+
+ACT --> EXEC
+ACT --> FILE
+ACT --> NOTIF
+
+DEP --> EXEC
+DEP --> ACT
+DEP --> DEC
+DEP --> NOTIF
+
+CR --> EXEC
+CR --> RISK
+CR --> FILE
+CR --> NOTIF
+CR --> JIRA
+
+DEC --> EXEC
+DEC --> FILE
+DEC --> NOTIF
+
+QA --> GOV
+QA --> EXEC
+QA --> RES
+QA --> FILE
+QA --> NOTIF
+QA --> JIRA
+
+CLOSE --> GOV
+CLOSE --> EXEC
+CLOSE --> RISK
+CLOSE --> CR
+CLOSE --> QA
+CLOSE --> FILE
+CLOSE --> NOTIF

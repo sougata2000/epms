@@ -1,0 +1,90 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor COE as COE Head
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as Innovation Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+participant CACHE as Redis
+
+COE ->> UI: Review Portfolio / Cohort
+alt Approve
+    COE ->> UI: Click Approve
+    UI ->> BFF: approveEntity(entityId, entityType)
+
+    BFF ->> ORCH: startApprovalWorkflow(entityId, entityType)
+
+    ORCH ->> SERVICE: validateApprovalEligibility(entityId, entityType)
+    SERVICE ->> READDB: Validate status = Review
+    SERVICE ->> READDB: Validate submitted details are complete
+
+    alt Cohort has questionnaire override
+        SERVICE ->> READDB: Check COE acknowledgement flag
+        alt Acknowledgement missing
+            SERVICE -->> ORCH: Validation error
+            ORCH -->> BFF: Return acknowledgement required
+            BFF -->> UI: Show checkbox validation
+        else Acknowledgement present
+            SERVICE -->> ORCH: Validation passed
+        end
+    else No override
+        SERVICE -->> ORCH: Validation passed
+    end
+
+    ORCH ->> SERVICE: approveEntity(entityId, entityType)
+    SERVICE ->> PRIMARYDB: UPDATE portfolio/cohort SET status='Live'
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='APPROVE', stage='Live')
+    SERVICE -->> ORCH: Approved
+
+    ORCH ->> KAFKA: Publish InnovationEntityApproved
+    ORCH ->> CACHE: Invalidate COE/Admin/PM lists
+
+    KAFKA ->> NS: Consume approval event
+    NS ->> READDB: Fetch Admin and Program Manager recipients
+    NS ->> PRIMARYDB: INSERT notification records
+
+    ORCH -->> BFF: Approval success
+    BFF -->> UI: Show Live status
+
+else Send Back
+    COE ->> UI: Enter comments and click Send Back
+    UI ->> BFF: sendBackEntity(entityId, entityType, comments)
+
+    BFF ->> ORCH: startSendBackWorkflow(entityId, entityType, comments)
+
+    ORCH ->> SERVICE: validateSendBack(entityId, comments)
+    SERVICE ->> READDB: Validate status = Review
+    alt Comments missing
+        SERVICE -->> ORCH: Validation error
+        ORCH -->> BFF: Return comments required
+        BFF -->> UI: Show comments mandatory message
+    else Comments present
+        ORCH ->> SERVICE: sendBackEntity(entityId, entityType, comments)
+        SERVICE ->> PRIMARYDB: UPDATE portfolio/cohort SET status='Sent Back'
+        SERVICE ->> PRIMARYDB: INSERT review_comments
+        SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='SEND_BACK', stage='Sent Back')
+        SERVICE -->> ORCH: Sent back
+
+        ORCH ->> KAFKA: Publish InnovationEntitySentBack
+        ORCH ->> CACHE: Invalidate COE/Admin lists
+
+        KAFKA ->> NS: Consume send-back event
+        NS ->> READDB: Fetch Admin/submitter recipient
+        NS ->> PRIMARYDB: INSERT notification records
+
+        ORCH -->> BFF: Send back success
+        BFF -->> UI: Show Sent Back status
+    end
+end

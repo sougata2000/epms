@@ -1,0 +1,34 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Requestor / Project Manager
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant CACHE as Redis Cache
+participant VMS as Vendor Management Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+
+PM ->> UI: Click vendor past score / history
+UI ->> BFF: Get vendor history(vendorId)
+
+BFF ->> CACHE: Get vendor history cache
+alt Cache Hit
+    CACHE -->> BFF: Cached last 3 evaluations
+else Cache Miss
+    BFF ->> VMS: getVendorHistory(vendorId)
+    VMS ->> READDB: GET vendor identity
+    VMS ->> READDB: GET last 3 evaluations ORDER BY evaluation_date DESC
+    VMS ->> READDB: GET past average score and past DRE score
+    READDB -->> VMS: Vendor history records
+    VMS -->> BFF: Vendor history response
+    BFF ->> CACHE: Cache vendor history
+end
+
+BFF -->> UI: Open modal with vendor name, ID, avg score, DRE score, last 3 evaluations
+PM ->> UI: Close modal

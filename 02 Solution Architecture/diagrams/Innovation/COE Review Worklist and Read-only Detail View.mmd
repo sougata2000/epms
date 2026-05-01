@@ -1,0 +1,41 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor COE as COE Head
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant CACHE as Redis
+
+COE ->> UI: Open Innovation Home
+UI ->> BFF: Load COE review worklist
+
+BFF ->> CACHE: Get COE review list
+alt Cache Hit
+    CACHE -->> BFF: Portfolio / Cohort review records
+else Cache Miss
+    BFF ->> SERVICE: getCOEReviewWorklist(coeUserId)
+    SERVICE ->> READDB: Get portfolios/cohorts WHERE status IN ('Review','Live','Sent Back')
+    READDB -->> SERVICE: Review worklist
+    SERVICE -->> BFF: Worklist response
+    BFF ->> CACHE: Cache COE review list
+end
+
+BFF -->> UI: Show portfolio/cohort list with status
+
+COE ->> UI: Click Portfolio / Cohort
+UI ->> BFF: Open review detail(entityId, entityType)
+
+BFF ->> SERVICE: getReviewDetail(entityId, entityType)
+SERVICE ->> READDB: Get details, ringi metadata, evaluation model, cohort list if portfolio
+READDB -->> SERVICE: Read-only review data
+SERVICE -->> BFF: Review detail payload
+BFF -->> UI: Render Details, Ringi Details, Evaluation tabs in read-only mode

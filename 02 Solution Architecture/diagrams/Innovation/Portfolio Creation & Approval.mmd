@@ -1,0 +1,62 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+
+participant ADMIN as Admin / IBX BP
+participant UI
+participant BFF
+participant SERVICE as Innovation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant AIWF as AI Workflow (Doc Parser)
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+%% -------------------------------
+%% STEP 1: Create Draft Portfolio (Details Tab)
+%% -------------------------------
+
+ADMIN->UI: Enter Portfolio Details
+UI->BFF: Save Draft (Details Tab)
+
+BFF->SERVICE: validate + save draft
+SERVICE->PRIMARYDB: insert portfolio (Draft)
+SERVICE->PRIMARYDB: insert stages + config
+
+BFF->UI: Draft Saved
+
+%% -------------------------------
+%% STEP 2: Upload Ringi Document (OpenText Integration)
+%% -------------------------------
+
+ADMIN->UI: Upload Ringi Document
+UI->BFF: upload document
+
+BFF->OPENTEXT: store document
+OPENTEXT->BFF: document_id + metadata
+
+%% AI-based extraction (non-deterministic, async capable)
+BFF->AIWF: extract ringi metadata
+AIWF->BFF: extracted fields
+
+BFF->SERVICE: update ringi metadata
+SERVICE->PRIMARYDB: save ringi details
+
+BFF->UI: Auto-populate Ringi Details tab
+
+%% -------------------------------
+%% STEP 3: Configure Evaluation Model
+%% -------------------------------
+
+ADMIN->UI: Define evaluation questions & weights
+UI->BFF: save evaluation config
+
+BFF->SERVICE: validate weights + rules
+SERVICE->PRIMARYDB: insert evaluation config
+
+SERVICE->PRIMARYDB: calculate subtotal & grand total
+
+BFF->UI: Show calculated totals

@@ -1,0 +1,50 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor PM as Program Manager
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+PM ->> UI: Click Startup (open preview)
+UI ->> BFF: getStartupPreview(startupId)
+
+BFF ->> SERVICE: fetchStartupPreview(startupId)
+SERVICE ->> READDB: Get startup details, stage timeline, documents, comments
+READDB -->> SERVICE: Preview data
+SERVICE -->> BFF: Preview response
+BFF -->> UI: Render startup preview
+
+alt Upload Document
+    PM ->> UI: Upload document
+    UI ->> BFF: uploadDocument(file)
+    BFF ->> OPENTEXT: Store file
+    OPENTEXT -->> BFF: document_id
+    BFF ->> SERVICE: saveDocumentMetadata(startupId, document_id)
+    SERVICE ->> PRIMARYDB: INSERT document metadata
+    SERVICE ->> KAFKA: Publish DocumentUploaded
+    KAFKA ->> NS: Notify stakeholders
+    SERVICE -->> BFF: Upload success
+    BFF -->> UI: Refresh document list
+else Add Comment / Request Document
+    PM ->> UI: Add comment / request
+    UI ->> BFF: addComment(startupId, text)
+    BFF ->> SERVICE: saveComment()
+    SERVICE ->> PRIMARYDB: INSERT comment
+    SERVICE ->> KAFKA: Publish CommentAdded
+    KAFKA ->> NS: Notify Startup
+    SERVICE -->> BFF: Comment saved
+    BFF -->> UI: Refresh comment history
+end

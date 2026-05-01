@@ -1,0 +1,73 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor SU as Startup User
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+SU ->> UI: Open Startup Landing Page
+UI ->> BFF: getStartupDashboard(userId)
+
+BFF ->> CACHE: Check startup dashboard cache
+alt Cache Hit
+    CACHE -->> BFF: Applications, projects, program invites
+else Cache Miss
+    BFF ->> SERVICE: fetchStartupDashboard(userId)
+    SERVICE ->> READDB: GET applications, projects,<br/>invites, notifications, pending actions
+    READDB -->> SERVICE: Dashboard data
+    SERVICE -->> BFF: Dashboard response
+    BFF ->> CACHE: Cache dashboard
+end
+
+BFF -->> UI: Render applications, projects and programs
+
+alt Respond to Program Invite
+    SU ->> UI: Click Yes / No
+    UI ->> BFF: respondToProgramInvite(programId, response)
+    BFF ->> SERVICE: saveProgramInviteResponse()
+    SERVICE ->> PRIMARYDB: UPDATE startup_program_invite
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='RESPOND_INVITE')
+    SERVICE ->> CACHE: Invalidate startup dashboard cache
+    SERVICE ->> KAFKA: Publish StartupProgramInviteResponded
+    KAFKA ->> NS: Notify Program Manager
+    SERVICE -->> BFF: Response saved
+    BFF -->> UI: Update invite status
+else Open Application Preview
+    SU ->> UI: Click Application Name
+    UI ->> BFF: getStartupPreview(applicationId)
+    BFF ->> SERVICE: fetchStartupPreview(applicationId)
+    SERVICE ->> READDB: GET stage tracker, startup details, <br/>documents, comments, pending actions
+    READDB -->> SERVICE: Preview data
+    SERVICE -->> BFF: Preview response
+    BFF -->> UI: Render preview page
+
+    alt Upload Pending Documents
+        SU ->> UI: Upload documents and Submit
+        UI ->> BFF: submitPendingDocuments(files)
+        BFF ->> OPENTEXT: Store documents
+        OPENTEXT -->> BFF: document_ids and metadata
+        BFF ->> SERVICE: saveStartupDocuments(applicationId, document_ids)
+        SERVICE ->> PRIMARYDB: INSERT startup_document_metadata
+        SERVICE ->> PRIMARYDB: UPDATE pending_action status='Submitted'
+        SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='UPLOAD_PENDING_DOCUMENTS')
+        SERVICE ->> CACHE: Invalidate startup preview/dashboard cache
+        SERVICE ->> KAFKA: Publish StartupDocumentsSubmitted
+        KAFKA ->> NS: Notify Program Manager / Reviewer
+        SERVICE -->> BFF: Upload success
+        BFF -->> UI: Refresh documents and pending actions
+    end
+end

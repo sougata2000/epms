@@ -1,0 +1,96 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor EXT as External MSIL Portal
+actor PM as Program Manager
+actor EP as Ecosystem Partner
+actor EV as Evaluator
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+%% External Application Intake
+EXT ->> ORCH: Push Startup Application Data
+ORCH ->> SERVICE: createStartupApplication()
+SERVICE ->> PRIMARYDB: INSERT startup, application records
+SERVICE ->> KAFKA: Publish StartupImported
+KAFKA ->> NS: Notify Program Manager
+
+%% Shortlisting and Cohort Onboarding
+PM ->> UI: Shortlist / Move Startup to Cohort
+UI ->> BFF: shortlistStartup(startupId, cohortId)
+BFF ->> SERVICE: updateCohortMapping()
+SERVICE ->> PRIMARYDB: UPDATE startup_cohort
+SERVICE ->> PRIMARYDB: UPDATE stage='Screening'
+SERVICE ->> KAFKA: Publish StartupShortlisted
+KAFKA ->> NS: Notify Ecosystem Partner
+
+%% Stage Loop Evaluation
+loop Stage-wise Evaluation
+    EP ->> UI: Review / Recommend Startup
+    UI ->> BFF: submitEPRecommendation()
+    BFF ->> SERVICE: saveRecommendation()
+    SERVICE ->> PRIMARYDB: INSERT recommendation
+
+    PM ->> UI: Assign Evaluators
+    UI ->> BFF: assignEvaluators()
+    BFF ->> SERVICE: assignEvaluators()
+    SERVICE ->> PRIMARYDB: INSERT evaluator assignments
+    SERVICE ->> KAFKA: Publish EvaluatorAssigned
+    KAFKA ->> NS: Notify Evaluators
+
+    EV ->> UI: Submit Evaluation
+    UI ->> BFF: submitEvaluation()
+    BFF ->> SERVICE: saveEvaluation()
+    SERVICE ->> PRIMARYDB: INSERT evaluation scores
+    SERVICE ->> SERVICE: calculateNetScore()
+    SERVICE ->> PRIMARYDB: UPDATE startup net_score
+
+    SERVICE ->> SERVICE: checkAllEvaluationsComplete()
+    alt All evaluations complete
+        SERVICE ->> PRIMARYDB: UPDATE evaluation_status='Complete'
+        SERVICE ->> KAFKA: Publish EvaluationCompleted
+        KAFKA ->> NS: Notify Program Manager
+    end
+
+    PM ->> UI: Move to Next Stage
+    UI ->> BFF: updateStage()
+    BFF ->> SERVICE: updateStage()
+    SERVICE ->> PRIMARYDB: UPDATE stage
+end
+
+%% Cohort Winner Selection
+PM ->> UI: Select Cohort Winner
+UI ->> BFF: markCohortWinner(startupId)
+BFF ->> SERVICE: updateWinnerFlag()
+SERVICE ->> PRIMARYDB: UPDATE winner_flag=true
+SERVICE ->> KAFKA: Publish CohortWinnerSelected
+KAFKA ->> NS: Notify stakeholders
+
+%% Paid POC Approval Upload
+PM ->> UI: Upload Paid POC Approval
+UI ->> BFF: uploadPOCApproval()
+BFF ->> OPENTEXT: Store document
+OPENTEXT -->> BFF: document_id
+BFF ->> SERVICE: savePOCMetadata()
+SERVICE ->> PRIMARYDB: INSERT poc_document
+SERVICE ->> PRIMARYDB: UPDATE status='Paid POC Approved'
+SERVICE ->> KAFKA: Publish PaidPOCApproved
+
+%% Downstream Project Initiation Trigger
+SERVICE ->> ORCH: Trigger Demand / Project Initiation
+ORCH ->> KAFKA: Publish InnovationToProjectInitiationEvent
+KAFKA ->> NS: Notify downstream systems / stakeholders

@@ -1,0 +1,79 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor PM as Program Manager
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+PM ->> UI: Open All Startups
+UI ->> BFF: Load filters and startup list
+BFF ->> CACHE: Check startup/cohort cache
+alt Cache Hit
+    CACHE -->> BFF: Startup list and filters
+else Cache Miss
+    BFF ->> SERVICE: getAllStartups(filters)
+    SERVICE ->> READDB: SELECT programs, cohorts, startups
+    READDB -->> SERVICE: Startup list
+    SERVICE -->> BFF: Startup list
+    BFF ->> CACHE: Cache startup list
+end
+BFF -->> UI: Show filters, current cohort and startup grid
+
+alt Move selected startups
+    PM ->> UI: Select startup rows and click Move
+    UI ->> BFF: moveStartupsToCurrentCohort(startupIds, cohortId)
+    BFF ->> SERVICE: validateMoveRequest(startupIds, cohortId)
+    SERVICE ->> READDB: Validate cohort active and startups eligible
+    alt Validation Failed
+        SERVICE -->> BFF: Validation errors
+        BFF -->> UI: Show inline errors
+    else Validation Passed
+        BFF ->> SERVICE: moveStartupsToCohort(startupIds, cohortId)
+        SERVICE ->> PRIMARYDB: INSERT/UPDATE startup_cohort_mapping
+        SERVICE ->> PRIMARYDB: UPDATE startup current_cohort_id
+        SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='MOVE_STARTUP_TO_COHORT')
+        SERVICE ->> CACHE: Invalidate startup/cohort cache
+        SERVICE ->> KAFKA: Publish StartupsMovedToCohort
+        KAFKA ->> NS: Notify Program Manager
+        SERVICE -->> BFF: Move success
+        BFF -->> UI: Refresh grid and show success
+    end
+else Manual bulk upload
+    PM ->> UI: Upload startup list file
+    UI ->> BFF: Submit bulk upload
+    BFF ->> OPENTEXT: Store uploaded file
+    OPENTEXT -->> BFF: document_id and metadata
+    BFF ->> SERVICE: validateBulkStartupFile(document_id, cohortId)
+    SERVICE ->> READDB: Fetch required startup file schema
+    SERVICE ->> SERVICE: Validate columns, mandatory fields, duplicates and dates
+    alt File Validation Failed
+        SERVICE ->> PRIMARYDB: INSERT bulk_upload_result(status='Failed', row_errors)
+        SERVICE -->> BFF: Row-level validation errors
+        BFF -->> UI: Show upload failure
+    else File Validation Passed
+        SERVICE ->> PRIMARYDB: INSERT bulk_upload_result(status='Validated')
+        SERVICE ->> PRIMARYDB: UPSERT startup records
+        SERVICE ->> PRIMARYDB: INSERT/UPDATE startup_cohort_mapping
+        SERVICE ->> PRIMARYDB: INSERT document_metadata(document_id, purpose='Startup Bulk Upload')
+        SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='BULK_UPLOAD_STARTUPS')
+        SERVICE ->> CACHE: Invalidate startup/cohort cache
+        SERVICE ->> KAFKA: Publish StartupBulkUploadCompleted
+        KAFKA ->> NS: Notify Program Manager
+        SERVICE -->> BFF: Upload success
+        BFF -->> UI: Refresh grid and show success
+    end
+end

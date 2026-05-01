@@ -1,0 +1,21 @@
+sequenceDiagram
+participant PM as Actor: Program Manager
+participant BFF
+participant SERVICE as Innovation Fund Service
+participant DB
+participant DOC as MSIL OpenText
+
+PM->BFF: Upload L2 Ringi
+BFF->DOC: Store document
+BFF->SERVICE: Save metadata
+SERVICE->DB: Status = Negotiation Completed
+
+PM->BFF: Upload legal documents
+BFF->DOC: Store legal docs
+BFF->SERVICE: Save metadata
+SERVICE->DB: Status = Funding Initiated
+
+PM->BFF: Upload final closure documents
+BFF->DOC: Store final docs
+BFF->SERVICE: Save metadata
+SERVICE->DB: Status = Funding Closed

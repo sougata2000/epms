@@ -1,0 +1,38 @@
+flowchart TD
+
+    A[1. External Customer / Internal Business User] --> B[2. Portal / Web Application]
+
+    B --> C[3. Login / Access Control]
+    C --> D[4. Customer Interaction Layer]
+
+    D --> D1[5. Customer Registration]
+    D --> D2[6. Customer Update Request]
+    D --> D3[7. Document Upload]
+    D --> D4[8. Request Tracking]
+    D --> D5[9. Report View]
+
+    D1 --> E[10. Application Backend Services]
+    D2 --> E
+    D3 --> E
+    D4 --> E
+    D5 --> R[17. Reporting Service]
+
+    E --> F[11. Save / Update in Application Operational DB]
+    E --> G[12. Store Documents in Repository]
+    E --> H[13. SAP Adapter / Integration Layer]
+
+    H --> I[14. SAP ECC]
+    I --> J[15. Approval Workflow in SAP ECC]
+    J --> K[16. Validation / Review / Approval]
+    K --> L[17. Customer Master Create / Update in SAP ECC]
+
+    L --> M[18. Customer Code / SAP Status / Rejection Reason]
+    M --> H
+    H --> E
+    E --> F
+
+    F --> R
+    I --> S[19. SAP Master / Approval Status Extract]
+    S --> R
+
+    R --> B

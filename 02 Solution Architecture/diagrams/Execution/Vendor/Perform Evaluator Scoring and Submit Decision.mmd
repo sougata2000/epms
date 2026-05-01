@@ -1,0 +1,68 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor EV as Evaluator
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant VMS as Vendor Management Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant CACHE as Redis Cache
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+EV ->> UI: Click Perform Evaluation
+UI ->> BFF: Load evaluation form(taskId)
+
+BFF ->> VMS: getEvaluationForm(taskId)
+VMS ->> READDB: Get request header and vendor assignment
+VMS ->> READDB: Get criteria, weightage, rating scale, acceptance rules
+VMS ->> READDB: Get saved draft if exists
+READDB -->> VMS: Evaluation form data
+VMS -->> BFF: Header, criteria, vendor columns, draft scores
+BFF -->> UI: Render evaluation form
+
+EV ->> UI: Enter scores, remarks
+UI ->> BFF: Save as Draft
+BFF ->> VMS: saveEvaluationDraft(taskId, scores, remarks)
+VMS ->> PRIMARYDB: UPSERT vendor_evaluation_draft
+VMS ->> PRIMARYDB: INSERT vendor_workflow_audit<br/>(action='SAVE_DRAFT', stage='EVALUATION_DRAFT')
+VMS -->> BFF: Draft saved
+BFF -->> UI: Show draft saved message
+
+EV ->> UI: Click Submit
+UI ->> BFF: Submit evaluation(taskId, scores, remarks)
+
+BFF ->> VMS: validateEvaluationSubmission(taskId)
+VMS ->> READDB: Validate assignment, criteria,<br/> score range, mandatory remarks
+alt Validation Failed
+    VMS -->> BFF: Validation errors
+    BFF -->> UI: Show row-level errors
+else Validation Passed
+    BFF ->> VMS: submitEvaluation(taskId)
+    VMS ->> VMS: Calculate weighted score
+    VMS ->> VMS: Apply acceptance rule Accept/Reject
+    VMS ->> PRIMARYDB: INSERT / UPDATE vendor_evaluation
+    VMS ->> PRIMARYDB: UPDATE vendor_request_evaluator_assignment<br/>(status='Evaluation Complete')
+    VMS ->> PRIMARYDB: INSERT vendor_workflow_audit(action= <br/>'SUBMIT_EVALUATION', stage='EVALUATION_COMPLETED')
+
+    VMS ->> READDB: Check all evaluations complete for request
+    alt All Vendor Evaluations Complete
+        VMS ->> PRIMARYDB: UPDATE vendor_evaluation_request(status='Evaluation Complete')
+        VMS ->> PRIMARYDB: INSERT vendor_workflow_audit <br/>(action='COMPLETE_REQUEST', stage='REQUEST_COMPLETED')
+        VMS ->> KAFKA: Publish VendorEvaluationRequestCompleted
+    else Pending Evaluations Exist
+        VMS ->> KAFKA: Publish VendorEvaluationSubmitted
+    end
+
+    VMS ->> CACHE: Invalidate evaluator <br/>queue and consolidated result cache
+    KAFKA ->> NS: Trigger requestor notification
+    VMS -->> BFF: Submit success with score and result
+    BFF -->> UI: Show Evaluation Complete
+end

@@ -1,0 +1,55 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+participant ADMIN
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NOTIFY as Notification Service
+participant CACHE as Redis
+
+%% Submit Cohort
+
+ADMIN ->> UI: Click Submit
+UI ->> BFF: Submit Cohort
+
+BFF ->> ORCH: start submission workflow
+
+ORCH ->> SERVICE: validate cohort
+
+SERVICE ->> READDB: Validate portfolio = Live
+SERVICE ->> READDB: Validate fields, dates, evaluation config
+
+alt Validation Failed
+    SERVICE -->> ORCH: Errors
+    ORCH -->> BFF: Return errors
+    BFF -->> UI: Show validation issues
+else Validation Passed
+
+    ORCH ->> SERVICE: update status to Review
+    SERVICE ->> PRIMARYDB: UPDATE cohort status
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit (SUBMIT, Review)
+
+    ORCH ->> KAFKA: Publish CohortSubmitted
+
+    ORCH ->> CACHE: Invalidate cohort cache
+
+    KAFKA ->> NOTIFY: Event consumed
+    NOTIFY ->> READDB: Fetch COE users
+    NOTIFY ->> PRIMARYDB: Insert notification
+    NOTIFY -->> ADMIN: Confirmation (optional)
+
+    ORCH -->> BFF: Success
+    BFF -->> UI: "Submitted for Review"
+end

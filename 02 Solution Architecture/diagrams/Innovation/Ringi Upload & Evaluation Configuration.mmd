@@ -1,0 +1,51 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+participant ADMIN
+participant UI
+participant BFF
+participant SERVICE
+participant OPENTEXT as MSIL OpenText DMS
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+
+%% Upload Ringi
+
+ADMIN ->> UI: Upload Ringi Document
+UI ->> BFF: Upload File
+
+BFF ->> OPENTEXT: Store Document
+OPENTEXT -->> BFF: document_id
+
+BFF ->> SERVICE: saveDocumentMetadata()
+SERVICE ->> PRIMARYDB: INSERT cohort_document
+SERVICE -->> BFF: Success
+BFF -->> UI: Show uploaded document
+
+%% Evaluation Config
+
+ADMIN ->> UI: Toggle Change Evaluation Questions
+
+alt Inherit Portfolio Model
+    UI ->> BFF: Use default evaluation model
+    BFF ->> SERVICE: inheritPortfolioEvaluation()
+    SERVICE ->> PRIMARYDB: INSERT cohort evaluation config (copy)
+    SERVICE -->> BFF: Success
+    BFF -->> UI: Read-only evaluation
+else Override Enabled
+    ADMIN ->> UI: Modify questions & weights
+    UI ->> BFF: Save evaluation config
+
+    BFF ->> SERVICE: validateEvaluationConfig()
+    SERVICE ->> PRIMARYDB: UPSERT evaluation config
+    SERVICE ->> PRIMARYDB: UPSERT evaluation questions
+
+    SERVICE -->> BFF: Totals calculated
+    BFF -->> UI: Show subtotal & grand total
+end

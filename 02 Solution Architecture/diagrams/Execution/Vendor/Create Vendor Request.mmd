@@ -1,0 +1,80 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Requestor / Project Manager
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant VMS as Vendor Management Service
+participant ADAPTER as Integration Adapter
+participant FILE as Opentext
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+participant CACHE as Redis Cache
+
+PM ->> UI: Click Request Evaluation
+UI ->> BFF: Open Request Evaluation screen
+
+BFF ->> CACHE: Get stage/config cache
+alt Cache Hit
+    CACHE -->> BFF: Stage list, evaluation rules
+else Cache Miss
+    BFF ->> VMS: getActiveEvaluationConfig()
+    VMS ->> READDB: Get Vendor Details
+    READDB -->> VMS: Active configuration
+    VMS -->> BFF: Stage/config data
+    BFF ->> CACHE: Cache stage/config data
+end
+
+BFF ->> ADAPTER: getAribaRegisteredVendors(rfqId/projectContext)
+ADAPTER -->> BFF: Vendor list
+
+BFF ->> READDB: getEvaluatorUsers(projectContext/stage)
+READDB -->> BFF: Evaluator list
+
+BFF -->> UI: Render form with stages, <Br/>vendors, evaluators
+
+PM ->> UI: Enter Req ID, RFQ ID, Ringi #, <BR/>Stage, Pre/Post, Vendors, Evaluators, DAR details
+PM ->> UI: Upload Ringi Approval
+UI ->> BFF: Submit Vendor Evaluation Request + file
+
+BFF ->> ORCH: createVendorEvaluationRequest(payload, file)
+
+ORCH ->> VMS: validateRequest(payload)
+VMS ->> READDB: Validate stage exists and active
+VMS ->> READDB: Check duplicate RFQ + Stage + Evaluation Stage
+VMS -->> ORCH: Validation result
+
+alt Validation Failed
+    ORCH -->> BFF: Validation errors
+    BFF -->> UI: Show inline errors
+else Validation Passed
+    ORCH ->> FILE: uploadRingiApproval(file)
+    FILE -->> ORCH: file_url, file_metadata
+
+    ORCH ->> VMS: createRequest(payload, file_metadata)
+    VMS ->> PRIMARYDB: INSERT vendor_evaluation_request(status='Sent for Evaluation')
+    VMS ->> PRIMARYDB: INSERT vendor_request_vendor_map(selected vendors)
+    VMS ->> PRIMARYDB: INSERT vendor_request_evaluator_assignment(evaluator/vendor mappings)
+    VMS ->> PRIMARYDB: INSERT vendor_document_metadata(ringi approval)
+    VMS ->> PRIMARYDB: INSERT vendor_workflow_audit(action='SUBMIT_REQUEST', stage='SENT_FOR_EVALUATION')
+    VMS -->> ORCH: request_id, assignment_ids
+
+    ORCH ->> KAFKA: Publish VendorEvaluationRequestSubmitted
+    ORCH ->> KAFKA: Publish VendorEvaluationAssigned
+
+    KAFKA ->> NS: Consume assignment events
+    NS ->> PRIMARYDB: INSERT notification records for evaluators
+    NS -->> PM: Optional request submission confirmation
+
+    ORCH -->> BFF: Submit success
+    BFF -->> UI: Show confirmation and navigate to request list
+end

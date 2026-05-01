@@ -1,0 +1,67 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor EV as Evaluator
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+EV ->> UI: Open Evaluator Landing Page
+UI ->> BFF: getAssignedStartups(cohortFilter, stageFilter)
+
+BFF ->> CACHE: Check evaluator task cache
+alt Cache Hit
+    CACHE -->> BFF: Assigned startup list
+else Cache Miss
+    BFF ->> SERVICE: fetchEvaluatorTasks(evaluatorId, filters)
+    SERVICE ->> READDB: GET assigned startups, cohort, stage, status, comments
+    READDB -->> SERVICE: Task list
+    SERVICE -->> BFF: Assigned startup list
+    BFF ->> CACHE: Cache evaluator task list
+end
+
+BFF -->> UI: Render assigned startup list
+
+EV ->> UI: Click Startup / Evaluation Tab
+UI ->> BFF: getEvaluationForm(startupId, stage)
+
+BFF ->> SERVICE: fetchEvaluationForm()
+SERVICE ->> READDB: GET evaluation parameters, weights, saved draft if any
+READDB -->> SERVICE: Evaluation model and existing scores
+SERVICE -->> BFF: Evaluation form data
+BFF -->> UI: Render parameter rows with weight and score input
+
+EV ->> UI: Enter scores and click Submit
+UI ->> BFF: submitEvaluation(scores)
+
+BFF ->> SERVICE: validateScores()
+SERVICE ->> SERVICE: Validate all mandatory scores and range 0-5
+
+alt Validation Failed
+    SERVICE -->> BFF: Validation errors
+    BFF -->> UI: Show score validation errors
+else Validation Passed
+    BFF ->> SERVICE: submitEvaluatorScore()
+    SERVICE ->> SERVICE: Calculate net score = score x weight
+    SERVICE ->> PRIMARYDB: INSERT/UPDATE startup_evaluation_score
+    SERVICE ->> PRIMARYDB: UPDATE evaluator_task status='Evaluation Complete'
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action=<br/>'SUBMIT_EVALUATION', stage='Evaluation Complete')
+    SERVICE ->> CACHE: Invalidate evaluator and PM grid cache
+    SERVICE ->> KAFKA: Publish StartupEvaluatorSubmitted
+
+    KAFKA ->> NS: Notify Program Manager
+    SERVICE -->> BFF: Submit success with net score
+    BFF -->> UI: Show Evaluation Complete
+end

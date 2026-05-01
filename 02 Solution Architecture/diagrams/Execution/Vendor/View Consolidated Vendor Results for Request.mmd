@@ -1,0 +1,36 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Requestor / Project Manager
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant CACHE as Redis Cache
+participant VMS as Vendor Management Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+
+PM ->> UI: Click ON Request No.
+UI ->> BFF: Get consolidated vendor result(requestId)
+
+BFF ->> CACHE: Get consolidated result cache
+alt Cache Hit
+    CACHE -->> BFF: Cached consolidated matrix
+else Cache Miss
+    BFF ->> VMS: getConsolidatedResult(requestId)
+    VMS ->> READDB: GET request header
+    VMS ->> READDB: GET vendors, evaluators, submitted scores
+    VMS ->> READDB: GET criteria weights and acceptance rules
+    VMS ->> READDB: GET last 3 vendor avg scores
+    VMS ->> VMS: Calculate weighted average per vendor
+    VMS ->> VMS: Derive Accept / Reject result
+    READDB -->> VMS: Result data
+    VMS -->> BFF: Consolidated comparison matrix
+    BFF ->> CACHE: Cache consolidated result
+end
+
+BFF -->> UI: Render vendor comparison, weighted score, result, past score

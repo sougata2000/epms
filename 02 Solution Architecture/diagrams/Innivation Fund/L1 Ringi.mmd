@@ -1,0 +1,47 @@
+sequenceDiagram
+autonumber
+participant PM as Actor: Program Manager
+
+participant EP as Actor: Ecosystem Partner
+
+participant STARTUP as Actor: Startup
+
+participant BFF
+
+participant SERVICE as Innovation Fund Service
+
+participant DB
+
+participant DOC as MSIL OpenText
+
+PM->BFF: Upload L1 Ringi
+
+BFF->DOC: Store document
+
+BFF->SERVICE: Save metadata
+
+SERVICE->DB: Status = Valuation Initiated
+
+EP->BFF: Request documents
+
+BFF->SERVICE: Save request
+
+SERVICE->MQ: Notify Startup
+
+STARTUP->BFF: Upload requested documents
+
+BFF->DOC: Store documents
+
+BFF->SERVICE: Save metadata
+
+SERVICE->DB: Update document records
+
+EP->BFF: Upload valuation document
+
+BFF->DOC: Store valuation doc
+
+PM->BFF: Enter valuation amounts
+
+BFF->SERVICE: Save valuation
+
+SERVICE->DB: Status = Negotiation Initiated

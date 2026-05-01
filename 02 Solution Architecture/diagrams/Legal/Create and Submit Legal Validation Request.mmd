@@ -1,0 +1,44 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Program Manager
+participant UI as Legal UI
+participant BFF as Legal BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as Legal Validation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+PM ->> UI: Create Legal Validation Request
+UI ->> BFF: Submit request details and document copy
+BFF ->> ORCH: startLegalRequestSubmission()
+
+ORCH ->> SERVICE: validateRequestByDocumentType()
+alt Validation Failed
+    SERVICE -->> ORCH: Mandatory field errors
+    ORCH -->> BFF: Return validation errors
+    BFF -->> UI: Show inline errors
+else Validation Passed
+    ORCH ->> OPENTEXT: Store legal review document copy
+    OPENTEXT -->> ORCH: document_id and metadata
+
+    ORCH ->> SERVICE: createAndSubmitLegalRequest()
+    SERVICE ->> PRIMARYDB: INSERT legal_validation_request(status='Open')
+    SERVICE ->> PRIMARYDB: INSERT legal_request_document
+    SERVICE ->> PRIMARYDB: INSERT legal_request_comment
+    SERVICE ->> PRIMARYDB: INSERT legal_request_audit(action='SUBMIT_LEGAL_REQUEST')
+
+    ORCH ->> KAFKA: Publish LegalRequestSubmitted
+    KAFKA ->> NS: Notify Legal Team
+
+    ORCH -->> BFF: Submit success
+    BFF -->> UI: Show request submitted with status Open
+end

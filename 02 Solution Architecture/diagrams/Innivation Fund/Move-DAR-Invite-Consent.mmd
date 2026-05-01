@@ -1,0 +1,29 @@
+sequenceDiagram
+autonumber
+participant PM as Actor: Program Manager
+participant EVAL as Actor: Evaluator
+participant STARTUP as Actor: Startup
+participant BFF
+participant SERVICE as Innovation Fund Service
+participant DB as Primary Database
+participant MQ as Event Bus
+
+PM->BFF: Move eligible startups to fund cohort
+BFF->SERVICE: Validate eligibility
+SERVICE->DB: Save cohort mapping
+
+PM->BFF: Send to DAR + assign evaluator
+BFF->SERVICE: Create DAR task
+SERVICE->MQ: Notify Evaluator
+
+EVAL->BFF: Submit DAR recommendation (Yes/No)
+BFF->SERVICE: Save recommendation
+SERVICE->DB: Update DAR status
+
+PM->BFF: Invite DAR-approved startups
+BFF->SERVICE: Send invite
+SERVICE->MQ: Notify Startup
+
+STARTUP->BFF: Accept / Reject invite
+BFF->SERVICE: Update consent status
+SERVICE->DB: Persist status

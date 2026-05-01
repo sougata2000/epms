@@ -3,6 +3,8 @@ config:
   sequence: {}
   theme: base
 ---
+
+%%{init: {'themeVariables': { 'fontSize': '30px'}}}%%
 %%{init: {'flowchart': {'compactMode': true}}}%%
 sequenceDiagram
 autonumber
@@ -26,7 +28,7 @@ ORCH->>DS: Store document
 DS-->>OT: Store document in Opentext
 OT-->>DS: Document stored (ID, URL)
 DS-->>ORCH: Document metadata (ID, URL)
-ORCH->>DEP: Save explanation and document metadata
+ORCH->>DEP: Save explanation <br/>and document metadata
 DEP->>PRIMARYDB: Update project_dependency (explanation)
 DEP->>PRIMARYDB: Insert project_dependency_document
 PRIMARYDB-->>DEP: Save success

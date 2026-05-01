@@ -1,0 +1,33 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Requestor / Project Manager
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant CACHE as Redis Cache
+participant VMS as Vendor Management Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+
+PM ->> UI: Open Vendor Management Home
+UI ->> BFF: Get requestor evaluation queue
+
+BFF ->> CACHE: Get requestor queue cache
+alt Cache Hit
+    CACHE -->> BFF: Cached request list
+else Cache Miss
+    BFF ->> VMS: getRequestorQueue(userId, filters)
+    VMS ->> READDB: GET requests, vendor <br/>count, evaluation completion status
+    READDB -->> VMS: Queue records
+    VMS -->> BFF: Request list with status
+    BFF ->> CACHE: Cache requestor queue
+end
+
+BFF -->> UI: Display Req ID, RFQ, <br/>Project, Stage, Vendors, Status
+PM ->> UI: Click Request Evaluation
+UI -->> PM: Navigate to Request Evaluation form

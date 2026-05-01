@@ -1,0 +1,57 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+
+participant ADMIN as Admin / IBX BP
+participant UI
+participant BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as Innovation Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NOTIFY as Notification Service
+
+%% -------------------------------
+%% STEP 4: Submit Portfolio (Workflow Trigger)
+%% -------------------------------
+
+ADMIN->UI: Click Submit
+UI->BFF: submit portfolio
+
+BFF->ORCH: initiate submission workflow
+
+ORCH->SERVICE: validate complete portfolio
+SERVICE->PRIMARYDB: fetch portfolio
+
+alt Validation Failed
+    SERVICE->ORCH: validation errors
+    ORCH->BFF: return error
+    BFF->UI: show validation messages
+end
+
+alt Validation Passed
+    ORCH->SERVICE: update status → Review
+    SERVICE->PRIMARYDB: update portfolio status
+
+    ORCH->KAFKA: publish "Portfolio Submitted"
+end
+
+%% -------------------------------
+%% STEP 5: Notification to COE Head
+%% -------------------------------
+
+KAFKA->NOTIFY: event received
+NOTIFY->SERVICE: fetch COE Head users
+NOTIFY->ADMIN: send notification (email/in-app)
+
+%% -------------------------------
+%% FINAL RESPONSE
+%% -------------------------------
+
+ORCH->BFF: success response
+BFF->UI: show "Submitted for Review"

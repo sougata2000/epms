@@ -1,0 +1,51 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Program Manager
+actor SU as Startup User
+participant BFF as FundRays BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as FundRays Service
+participant OPENTEXT as MSIL OpenText DMS
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM ->> BFF: Move eligible startups to FundRays
+BFF ->> SERVICE: validateEligibility(startupIds)
+SERVICE ->> READDB: Check Cohort Onboarded / Paid POC Complete and MSIL-running portfolio
+SERVICE ->> PRIMARYDB: INSERT/UPDATE fundrays_startup(status='FundRays Candidate')
+SERVICE ->> PRIMARYDB: INSERT fundrays_audit(action='MOVE_TO_FUNDRAYS')
+
+PM ->> BFF: Send invite
+BFF ->> SERVICE: sendInvite(fundraysId)
+SERVICE ->> PRIMARYDB: INSERT fundrays_invite(status='Invited')
+SERVICE ->> KAFKA: Publish FundRaysInviteSent
+
+SU ->> BFF: Accept / Reject invite
+BFF ->> SERVICE: captureConsent(response)
+SERVICE ->> PRIMARYDB: UPDATE fundrays_invite(response)
+SERVICE ->> PRIMARYDB: UPDATE fundrays_startup(status='Accept/Reject')
+SERVICE ->> KAFKA: Publish FundRaysConsentCaptured
+
+PM ->> BFF: Upload application form for accepted startup
+BFF ->> ORCH: startApplicationFormDispatch()
+ORCH ->> OPENTEXT: Store application form
+OPENTEXT -->> ORCH: opentext_doc_id
+ORCH ->> SERVICE: saveApplicationForm()
+SERVICE ->> PRIMARYDB: INSERT fundrays_application_form(status='Form Pending')
+ORCH ->> KAFKA: Publish FundRaysApplicationFormSent
+
+SU ->> BFF: Submit completed application form
+BFF ->> OPENTEXT: Store submitted form
+OPENTEXT -->> BFF: opentext_doc_id
+BFF ->> SERVICE: submitApplicationForm()
+SERVICE ->> PRIMARYDB: UPDATE fundrays_application_form(status='Form Submitted')
+SERVICE ->> PRIMARYDB: UPDATE fundrays_startup(status='Form Submitted')
+SERVICE ->> KAFKA: Publish FundRaysApplicationSubmitted

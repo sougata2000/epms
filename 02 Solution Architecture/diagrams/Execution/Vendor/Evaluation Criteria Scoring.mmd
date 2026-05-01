@@ -1,0 +1,59 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor ADMIN as Admin
+participant UI as Vendor Management UI
+participant BFF as Vendor BFF
+participant CACHE as Redis Cache
+participant VMS as Vendor Management Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant AUDIT as Audit Service
+
+ADMIN ->> UI: Open Evaluation Model Setup
+UI ->> BFF: Load setup screen
+
+BFF ->> CACHE: Get active vendor evaluation config
+alt Cache Hit
+    CACHE -->> BFF: Stage, criteria, rating scale, rules
+else Cache Miss
+    BFF ->> VMS: getEvaluationModel()
+    VMS ->> READDB: Get Vendor details
+    READDB -->> VMS: Existing config / blank setup
+    VMS -->> BFF: Config response
+    BFF ->> CACHE: Cache config
+end
+
+BFF -->> UI: Render setup screen
+
+ADMIN ->> UI: Add/update stage, criteria,<br/> weights, rating scale, acceptance rules
+ADMIN ->> UI: Click Save
+UI ->> BFF: Save evaluation model payload
+
+BFF ->> VMS: validateEvaluationModel(payload)
+VMS ->> VMS: Validate mandatory stage, criteria rows, <br/>weightage, unique score, parseable rules
+
+alt Validation Failed
+    VMS -->> BFF: Validation errors
+    BFF -->> UI: Show inline errors
+else Validation Passed
+    BFF ->> VMS: saveEvaluationModel(payload)
+    VMS ->> PRIMARYDB: UPSERT vendor_stage_master
+    VMS ->> PRIMARYDB: UPSERT vendor_eval_criteria
+    VMS ->> PRIMARYDB: UPSERT vendor_rating_scale
+    VMS ->> PRIMARYDB: UPSERT vendor_acceptance_rule
+    VMS ->> PRIMARYDB: INSERT vendor_workflow_audit <br/>(action='SAVE_CONFIG', stage='CONFIG_SAVED')
+    VMS -->> BFF: Save success
+
+    VMS ->> KAFKA: Publish VendorEvaluationConfigSaved
+    VMS ->> AUDIT: Log admin configuration change
+    BFF ->> CACHE: Invalidate vendor evaluation config cache
+    BFF -->> UI: Show save confirmation
+end

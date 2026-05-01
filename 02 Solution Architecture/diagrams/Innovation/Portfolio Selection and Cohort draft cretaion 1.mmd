@@ -1,0 +1,59 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+participant ADMIN as Admin / IBX BP
+participant UI
+participant BFF
+participant SERVICE as Innovation Service
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis
+
+%% Load Live Portfolios
+
+ADMIN ->> UI: Open Create Cohort
+UI ->> BFF: Load Live Portfolios
+
+BFF ->> CACHE: Get portfolios
+alt Cache Hit
+    CACHE -->> BFF: Portfolio list
+else Cache Miss
+    BFF ->> SERVICE: getLivePortfolios()
+    SERVICE ->> READDB: SELECT portfolios WHERE status='Live'
+    READDB -->> SERVICE: Portfolio list
+    SERVICE -->> BFF: Response
+    BFF ->> CACHE: Cache portfolios
+end
+
+BFF -->> UI: Display portfolio list
+
+%% Select Portfolio & Prefill
+
+ADMIN ->> UI: Select Portfolio
+UI ->> BFF: Fetch portfolio config
+
+BFF ->> SERVICE: getPortfolioConfig()
+SERVICE ->> READDB: Fetch stages, evaluation model, focus areas
+READDB -->> SERVICE: Config
+SERVICE -->> BFF: Response
+BFF -->> UI: Auto-populate fields
+
+%% Create Draft
+
+ADMIN ->> UI: Enter cohort details
+UI ->> BFF: Save Draft
+
+BFF ->> SERVICE: createCohortDraft()
+SERVICE ->> PRIMARYDB: INSERT cohort (Draft)
+SERVICE ->> PRIMARYDB: INSERT status config + custom fields
+SERVICE ->> PRIMARYDB: INSERT workflow_audit (CREATE, Draft)
+
+SERVICE -->> BFF: cohortId
+BFF -->> UI: Draft saved

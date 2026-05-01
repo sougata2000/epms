@@ -1,0 +1,60 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor ADMIN as Admin / IBX BP
+actor COE as COE Head
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as Innovation Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+participant CACHE as Redis
+
+ADMIN ->> UI: Open Sent Back Portfolio / Cohort
+UI ->> BFF: Load editable entity
+BFF ->> SERVICE: getEditableEntity(entityId, entityType)
+SERVICE ->> READDB: Get details, comments, ringi, evaluation model
+READDB -->> SERVICE: Editable data with review comments
+SERVICE -->> BFF: Entity payload
+BFF -->> UI: Render editable form
+
+ADMIN ->> UI: Correct details and click Resubmit
+UI ->> BFF: resubmitEntity(entityId, entityType)
+
+BFF ->> ORCH: startResubmissionWorkflow(entityId, entityType)
+
+ORCH ->> SERVICE: validateResubmission(entityId, entityType)
+SERVICE ->> READDB: Validate status = Sent Back
+SERVICE ->> READDB: Validate required details complete
+
+alt Validation Failed
+    SERVICE -->> ORCH: Validation errors
+    ORCH -->> BFF: Return errors
+    BFF -->> UI: Show validation messages
+else Validation Passed
+    ORCH ->> SERVICE: resubmitEntity(entityId, entityType)
+    SERVICE ->> PRIMARYDB: UPDATE portfolio/cohort SET status='Review'
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='RESUBMIT', stage='Review')
+    SERVICE -->> ORCH: Resubmitted
+
+    ORCH ->> KAFKA: Publish InnovationEntityResubmitted
+    ORCH ->> CACHE: Invalidate COE/Admin lists
+
+    KAFKA ->> NS: Consume resubmission event
+    NS ->> READDB: Fetch COE Head recipients
+    NS ->> PRIMARYDB: INSERT notification records
+
+    ORCH -->> BFF: Resubmission success
+    BFF -->> UI: Show Submitted for Review
+    NS -->> COE: Notify resubmission for review
+end

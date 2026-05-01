@@ -1,0 +1,48 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Program Manager
+actor EV as MSIL Evaluator
+actor EP as Ecosystem Partner
+participant BFF as FundRays BFF
+participant SERVICE as FundRays Service
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis Cache
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+
+PM ->> BFF: Assign MSIL evaluators and EP evaluator
+BFF ->> SERVICE: assignEvaluators(fundraysId, evaluatorIds)
+SERVICE ->> READDB: Validate status = Form Submitted
+SERVICE ->> PRIMARYDB: INSERT fundrays_evaluator_assignment
+SERVICE ->> PRIMARYDB: UPDATE fundrays_startup(status='Pending Evaluation')
+SERVICE ->> KAFKA: Publish FundRaysEvaluatorAssigned
+
+EV ->> BFF: Open assigned evaluation
+BFF ->> CACHE: Check evaluator form cache
+alt Cache Hit
+    CACHE -->> BFF: Evaluation questions and startup details
+else Cache Miss
+    BFF ->> SERVICE: getEvaluationForm(assignmentId)
+    SERVICE ->> READDB: Fetch startup details, questions, weights
+    SERVICE -->> BFF: Evaluation form
+    BFF ->> CACHE: Cache evaluation form
+end
+
+EV ->> BFF: Submit MSIL score
+BFF ->> SERVICE: submitScore(evaluatorType='MSIL')
+SERVICE ->> PRIMARYDB: INSERT fundrays_score
+SERVICE ->> PRIMARYDB: UPDATE assignment status='Evaluation Complete'
+SERVICE ->> KAFKA: Publish FundRaysMSILScoreSubmitted
+
+EP ->> BFF: Submit EP score
+BFF ->> SERVICE: submitScore(evaluatorType='EP')
+SERVICE ->> PRIMARYDB: INSERT fundrays_score
+SERVICE ->> PRIMARYDB: UPDATE assignment status='Evaluation Complete'
+SERVICE ->> KAFKA: Publish FundRaysEPScoreSubmitted

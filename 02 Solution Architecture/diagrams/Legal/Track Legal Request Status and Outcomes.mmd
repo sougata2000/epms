@@ -1,0 +1,39 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor PM as Program Manager
+participant UI as Legal UI
+participant BFF as Legal BFF
+participant CACHE as Redis Cache
+participant SERVICE as Legal Validation Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+
+PM ->> UI: Open Legal Landing Page
+UI ->> BFF: getLegalRequestList(filters)
+
+BFF ->> CACHE: Check legal request list cache
+alt Cache Hit
+    CACHE -->> BFF: Cached request list
+else Cache Miss
+    BFF ->> SERVICE: fetchLegalRequestList(userId, filters)
+    SERVICE ->> READDB: GET legal requests by user/role/status
+    READDB -->> SERVICE: Approved/Open/Sent Back list
+    SERVICE -->> BFF: Request list
+    BFF ->> CACHE: Cache request list
+end
+
+BFF -->> UI: Show Legal request list with status
+
+PM ->> UI: Click request number
+UI ->> BFF: getLegalRequestDetail(requestId)
+BFF ->> SERVICE: fetchRequestDetail(requestId)
+SERVICE ->> READDB: GET request, document metadata, comments, decision history
+READDB -->> SERVICE: Request detail
+SERVICE -->> BFF: Detail response
+BFF -->> UI: Show request details and comments history

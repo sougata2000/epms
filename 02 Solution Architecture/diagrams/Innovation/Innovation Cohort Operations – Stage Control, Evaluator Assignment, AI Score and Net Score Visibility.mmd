@@ -1,0 +1,87 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor PM as Program Manager
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant AIWF as AI Workflow
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant CACHE as Redis
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+PM ->> UI: Open All Programs and select Cohort
+UI ->> BFF: Load cohort startup grid(cohortId, filters)
+
+BFF ->> CACHE: Check cohort startup grid cache
+alt Cache Hit
+    CACHE -->> BFF: Cached grid data
+else Cache Miss
+    BFF ->> SERVICE: getCohortStartupGrid(cohortId, filters)
+    SERVICE ->> READDB: SELECT cohort startups, stages, evaluator assignments, evaluation status, net score
+    READDB -->> SERVICE: Grid data
+    SERVICE -->> BFF: Grid response
+    BFF ->> CACHE: Cache grid response
+end
+
+BFF -->> UI: Render startup grid with AI score, stage, evaluator, status, net score
+
+alt Get AI Score / Tooltip
+    PM ->> UI: Hover / request AI score explanation
+    UI ->> BFF: getAIScoreSummary(startupId, cohortId)
+    BFF ->> AIWF: Generate / fetch AI score summary
+    AIWF -->> BFF: AI score + explanation
+    BFF -->> UI: Show AI tooltip
+else Assign Evaluators
+    PM ->> UI: Select evaluator(s) for startup
+    UI ->> BFF: assignEvaluators(startupId, stage, evaluatorIds)
+    BFF ->> SERVICE: validateAndAssignEvaluators()
+    SERVICE ->> READDB: Validate startup, stage, evaluator eligibility
+    SERVICE ->> PRIMARYDB: INSERT / UPDATE startup_evaluator_assignment
+    SERVICE ->> PRIMARYDB: UPDATE startup_evaluation_status='Pending Evaluation'
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='ASSIGN_EVALUATOR')
+    SERVICE ->> CACHE: Invalidate grid cache
+    SERVICE ->> KAFKA: Publish StartupEvaluatorAssigned
+    KAFKA ->> NS: Notify assigned evaluators
+    SERVICE -->> BFF: Assignment success
+    BFF -->> UI: Refresh evaluator/status columns
+else Change Stage / Overall Status
+    PM ->> UI: Change stage or overall status
+    UI ->> BFF: updateStartupStageStatus(startupId, stage, overallStatus)
+    BFF ->> SERVICE: validateStageStatusChange()
+    SERVICE ->> READDB: Validate stage exists in cohort configuration
+    SERVICE ->> PRIMARYDB: UPDATE startup_stage_status
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='UPDATE_STAGE_STATUS')
+    SERVICE ->> CACHE: Invalidate grid cache
+    SERVICE ->> KAFKA: Publish StartupStageStatusChanged
+    KAFKA ->> NS: Notify startup / ecosystem partner if configured
+    SERVICE -->> BFF: Update success
+    BFF -->> UI: Refresh stage and status
+else Upload L1/L2 Ringi
+    PM ->> UI: Upload L1/L2 Ringi
+    UI ->> BFF: Upload ringi document
+    BFF ->> OPENTEXT: Store document
+    OPENTEXT -->> BFF: document_id and metadata
+    BFF ->> SERVICE: saveStartupRingiMetadata()
+    SERVICE ->> PRIMARYDB: INSERT startup_document_metadata
+    SERVICE ->> PRIMARYDB: INSERT workflow_audit(action='UPLOAD_RINGI')
+    SERVICE ->> CACHE: Invalidate grid cache
+    SERVICE -->> BFF: Upload success
+    BFF -->> UI: Show uploaded ringi indicator
+else All Evaluations Completed Event
+    SERVICE ->> PRIMARYDB: UPDATE startup_evaluation_status='Evaluation Complete'
+    SERVICE ->> PRIMARYDB: UPDATE startup_net_score
+    SERVICE ->> CACHE: Invalidate grid cache
+    SERVICE ->> KAFKA: Publish StartupEvaluationCompleted
+    KAFKA ->> NS: Notify Program Manager
+end

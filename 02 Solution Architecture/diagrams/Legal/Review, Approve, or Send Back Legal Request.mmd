@@ -1,0 +1,58 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+actor LEGAL as Legal Reviewer
+participant UI as Legal UI
+participant BFF as Legal BFF
+participant ORCH@{ "type":"boundary", "alias":"Journey Orchestrator"}
+participant SERVICE as Legal Validation Service
+participant READDB@{ "type": "database", "alias": "EPMS schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+LEGAL ->> UI: Open legal request
+UI ->> BFF: getLegalRequestDetail(requestId)
+BFF ->> SERVICE: fetchRequestDetail(requestId)
+SERVICE ->> READDB: SELECT request, document metadata, comments, audit
+READDB -->> SERVICE: Request details
+SERVICE -->> BFF: Review payload
+BFF -->> UI: Render details in review mode
+
+alt Approve
+    LEGAL ->> UI: Click Approve
+    UI ->> BFF: approveLegalRequest(requestId)
+    BFF ->> ORCH: startApprovalWorkflow(requestId)
+    ORCH ->> SERVICE: approveRequest()
+    SERVICE ->> PRIMARYDB: UPDATE legal_validation_request SET status='Approved'
+    SERVICE ->> PRIMARYDB: INSERT legal_request_audit(action='APPROVE_LEGAL_REQUEST')
+    ORCH ->> KAFKA: Publish LegalRequestApproved
+    KAFKA ->> NS: Notify Program Manager
+    ORCH -->> BFF: Approval success
+    BFF -->> UI: Show Approved status
+else Send Back
+    LEGAL ->> UI: Enter comments and Send Back
+    UI ->> BFF: sendBackLegalRequest(requestId, comments)
+    BFF ->> ORCH: startSendBackWorkflow(requestId)
+    ORCH ->> SERVICE: validateSendBackComments(comments)
+    alt Comments Missing
+        SERVICE -->> ORCH: Comments required
+        ORCH -->> BFF: Return validation error
+        BFF -->> UI: Show comments mandatory message
+    else Comments Present
+        ORCH ->> SERVICE: sendBackRequest()
+        SERVICE ->> PRIMARYDB: UPDATE legal_validation_request SET status='Sent Back'
+        SERVICE ->> PRIMARYDB: INSERT legal_request_comment
+        SERVICE ->> PRIMARYDB: INSERT legal_request_audit(action='SEND_BACK_LEGAL_REQUEST')
+        ORCH ->> KAFKA: Publish LegalRequestSentBack
+        KAFKA ->> NS: Notify Program Manager
+        ORCH -->> BFF: Send back success
+        BFF -->> UI: Show Sent Back status
+    end
+end

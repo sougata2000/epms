@@ -1,0 +1,33 @@
+flowchart LR
+    U[User] --> UI[Web / Mobile App]
+
+    UI --> EDGE[CDN / WAF]
+    EDGE --> GW[API Gateway]
+
+    GW --> BFF[Web / Mobile BFF]
+
+    BFF --> ORCH[Journey Orchestrator]
+
+    ORCH --> DEMAND[Demand Service]
+    ORCH --> PROJECT[Project Service]
+    ORCH --> PROGRAM[Program Service]
+    ORCH --> RULES[Rule Engine]
+
+    DEMAND --> DB[(Primary DB)]
+    PROJECT --> DB
+    PROGRAM --> DB
+    RULES --> DB
+
+    DB --> KAFKA["Event Messaging Platform (Kafka)"]
+
+    KAFKA --> NOTIF[Notification Service]
+    KAFKA --> SEARCH[Search Service]
+    KAFKA --> READDB[(Read DB)]
+    KAFKA --> GRAPH[(Graph DB)]
+
+    NOTIF --> UI
+    SEARCH --> UI
+    READDB --> UI
+    GRAPH --> UI
+
+    UI --> RESP[UI Status Update]

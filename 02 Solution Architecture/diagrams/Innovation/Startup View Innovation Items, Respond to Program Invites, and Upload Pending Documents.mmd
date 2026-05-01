@@ -1,0 +1,60 @@
+---
+config:
+  sequence: {}
+  theme: base
+---
+%%{init: {'flowchart': {'compactMode': true}}}%%
+
+sequenceDiagram
+autonumber
+
+actor SU as Startup User
+participant UI as Innovation UI
+participant BFF as Innovation BFF
+participant SERVICE as Innovation Service
+participant OPENTEXT as MSIL OpenText DMS
+participant READDB@{ "type": "database", "alias": "EPMS Read schema"}
+participant PRIMARYDB@{ "type": "database", "alias": "EPMS schema"}
+participant KAFKA@{ "type": "queue", "alias": "Message Bus"}
+participant NS as Notification Service
+
+SU ->> UI: Open Startup Landing (Applications / Projects / Programs)
+UI ->> BFF: getStartupDashboard(userId)
+
+BFF ->> SERVICE: fetchStartupDashboard(userId)
+SERVICE ->> READDB: Get applications, projects, program invites, notifications
+READDB -->> SERVICE: Dashboard data
+SERVICE -->> BFF: Dashboard response
+BFF -->> UI: Render landing page
+
+alt Respond to Program Invite
+    SU ->> UI: Click Yes / No on program invite
+    UI ->> BFF: respondToInvite(programId, response)
+    BFF ->> SERVICE: saveInviteResponse()
+    SERVICE ->> PRIMARYDB: UPDATE program_invite_status
+    SERVICE ->> KAFKA: Publish ProgramInviteResponded
+    KAFKA ->> NS: Notify Program Manager
+    SERVICE -->> BFF: Response saved
+    BFF -->> UI: Update invite status
+else Open Startup Preview
+    SU ->> UI: Click Application / Program
+    UI ->> BFF: getStartupPreview(startupId)
+    BFF ->> SERVICE: fetchStartupPreview()
+    SERVICE ->> READDB: Get stage, documents, comments, pending actions
+    READDB -->> SERVICE: Preview data
+    SERVICE -->> BFF: Preview response
+    BFF -->> UI: Render preview
+
+    alt Upload Pending Documents
+        SU ->> UI: Upload documents and click Submit
+        UI ->> BFF: uploadDocuments(files)
+        BFF ->> OPENTEXT: Store documents
+        OPENTEXT -->> BFF: document_ids
+        BFF ->> SERVICE: saveDocumentMetadata(startupId, document_ids)
+        SERVICE ->> PRIMARYDB: INSERT document metadata
+        SERVICE ->> KAFKA: Publish StartupDocumentsSubmitted
+        KAFKA ->> NS: Notify PM / Ecosystem Partner
+        SERVICE -->> BFF: Upload success
+        BFF -->> UI: Refresh document list and clear pending actions
+    end
+end
